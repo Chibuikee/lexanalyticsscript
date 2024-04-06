@@ -95,7 +95,9 @@ function extractMetadata(docPath) {
         const stopIndex = text.indexOf("CASE SUMMARY");
         const textFromIndex = text.slice(startIndex + 35, stopIndex);
         // console.log(textFromIndex);
-        const arearegex = /(?<=\n+)([A-Z\s]+)(?=.+(?:-|:))/g;
+        const arearegex = /(?<=\n+)[A-Z ]+(?=.+(?:-|:))/g;
+        // matches jurisdiction just once in effc case
+        // const arearegex = /(?<=\n+)[A-Z\s]+(?=.+(?:-|:))/g;
 
         console.log(textFromIndex.match(arearegex));
         const allMatches = textFromIndex.matchAll(arearegex);
