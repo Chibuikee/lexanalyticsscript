@@ -6,6 +6,12 @@ const mammoth = require("mammoth");
 function removeFormating(item) {
   return item.replace(/\t|\n/g, " ");
 }
+// create string for key, pair it with it's value
+function createKeyAndValue(key, dataArray, metadata) {
+  for (let index = 0; index < dataArray.length; index++) {
+    metadata[`${key}_${index}`] = dataArray[index];
+  }
+}
 
 const areatext = `
 ISSUES FROM THE CAUSE(S) OF ACTION 
@@ -94,44 +100,36 @@ function extractMetadata(docPath) {
         const startIndex = text.indexOf("ISSUES FROM THE CAUSE(S) OF ACTION");
         const stopIndex = text.indexOf("CASE SUMMARY");
         const textFromIndex = text.slice(startIndex + 35, stopIndex);
-        // console.log(textFromIndex);
         const arearegex = /(?<=\n+)[A-Z ]+(?=.+(?:-|:))/g;
-        // matches jurisdiction just once in effc case
-        // const arearegex = /(?<=\n+)[A-Z\s]+(?=.+(?:-|:))/g;
-
-        console.log(textFromIndex.match(arearegex));
-        const allMatches = textFromIndex.matchAll(arearegex);
-        const reRegex = /OF ACTION \n\n(.*)/;
-        const regex2 = /\nACTION/;
-        const areasOfLaw = [...allMatches].map(
-          (match) =>
-            // match[1].replace(reRegex, "$1")
-            match[1]
-          // .replace(reRegex, "$1").replace(regex2, "").trim()
-        );
-        // console.log(areasOfLaw);
-        const uniqueAreas = areasOfLaw
-          ? areasOfLaw.map((area) => area.trim())
-          : [];
-
-        const UniqueAreasofLaw = [...new Set(uniqueAreas)];
-
+        const allMatches = textFromIndex.match(arearegex);
+        // console.log(allMatches);
+        // remove leading and trailing spaces
+        const cleanAreasofLaw = allMatches.map((item) => item.trim());
+        // create unique areas from all the areas found
+        const UniqueAreasofLaw = [...new Set(cleanAreasofLaw)];
         for (let index = 0; index < UniqueAreasofLaw.length; index++) {
           metadata[`area_of_law_${index}`] = UniqueAreasofLaw[index];
         }
-        // metadata.areas_of_law = UniqueAreasofLaw.filter((item) => item !== "");
 
+        // JUDGES EXTRACTIONS
+        // const JstartIndex = text.search(
+        //   /(?<=BEFORE THEIR (?:LORDSHIPS:|JUDGES:))/
+        // );
+        // const JstopIndex = text.search(/-end!/);
+        // const JtextFromIndex = text.slice(JstartIndex, JstopIndex);
+        // console.log(JtextFromIndex);
         const judgesRegex =
-          /(?:BEFORE\s+(?:THEIR\s+)?LORDSHIPS?|JUDGES)\s+([\w\s\-,&]+)\s*(?:-end!)?/g;
+          /(?<=BEFORE THEIR (?:LORDSHIPS:|JUDGES:))([A-Z\s\-,]+)\s*(?=-end!)/g;
+        // const judgesRegex = /(?<=\n+)[A-Z\s\-,]+(JSC|JCA)/g;
         const matches = text.match(judgesRegex);
-        metadata.judges = matches
-          ? matches
-              .map((judge) =>
-                judge.replace(/\n/g, "").replace("BEFORE THEIR LORDSHIPS", "")
-              )
-              .toString()
-              .split(/,\s*/)
+
+        // metadata.judges = matches
+        //   ? matches.map((item) => item.trim().split(/\n+/)).flat()
+        //   : [];
+        const allJudges = matches
+          ? matches.map((item) => item.trim().split(/\n+/)).flat()
           : [];
+        createKeyAndValue("judge", allJudges, metadata);
         // Generate unique doc_id
         metadata.doc_id = path.basename(docPath, path.extname(docPath));
 
