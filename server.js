@@ -93,16 +93,21 @@ function extractMetadata(docPath) {
         // Extract AREAS OF LAW
         const startIndex = text.indexOf("ISSUES FROM THE CAUSE(S) OF ACTION");
         const stopIndex = text.indexOf("CASE SUMMARY");
-        const textFromIndex = text.slice(startIndex, stopIndex);
-        const arearegex = /\n+(?:-\s+)?([A-Z\s&]+)(?=\s+(?:-|;|:))/g;
-        // const arearegex = /\s+(?:-\s+)?([A-Z\s&]+)(?=\s+(?:-|;|:|$))/g;
+        const textFromIndex = text.slice(startIndex + 35, stopIndex);
+        // console.log(textFromIndex);
+        const arearegex = /(?<=\n+)([A-Z\s]+)(?=.+(?:-|:))/g;
+
+        console.log(textFromIndex.match(arearegex));
         const allMatches = textFromIndex.matchAll(arearegex);
         const reRegex = /OF ACTION \n\n(.*)/;
         const regex2 = /\nACTION/;
-        const areasOfLaw = [...allMatches].map((match) =>
-          // match[1].replace(reRegex, "$1")
-          match[1].replace(reRegex, "$1").replace(regex2, "").trim()
+        const areasOfLaw = [...allMatches].map(
+          (match) =>
+            // match[1].replace(reRegex, "$1")
+            match[1]
+          // .replace(reRegex, "$1").replace(regex2, "").trim()
         );
+        // console.log(areasOfLaw);
         const uniqueAreas = areasOfLaw
           ? areasOfLaw.map((area) => area.trim())
           : [];
@@ -179,7 +184,8 @@ async function processDocuments(inputDir, outputDir) {
 }
 
 // input and output path
-const inputDirectory = "path/cases";
+// const inputDirectory = "path/cases";
 // const inputDirectory = "path/case";
+const inputDirectory = "path/case1";
 const outputDirectory = "path/to";
 processDocuments(inputDirectory, outputDirectory);

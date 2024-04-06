@@ -19,7 +19,8 @@ ORIGINATING FACTS AND CLAIMS
 The 2nd Respondent was allocated shop No. 53, Wunti Shopping Complex Bauchi through a letter of
 `;
 
-const regex = /\s+(?:-\s+)?([A-Z\s&]+)(?=\s+(?:-|;|:|$))/g;
+const regex = /([A-Z\s]+)(?=\s+(?:-|;|:))/g;
+// const regex = /\s+(?:-\s+)?([A-Z\s&]+)(?=\s+(?:-|;|:|$))/g;
 const areasOfLaw = [];
 let match;
 while ((match = regex.exec(text)) !== null) {
