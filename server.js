@@ -1,11 +1,8 @@
 const fs = require("fs");
 const path = require("path");
 const mammoth = require("mammoth");
-// const mkdirp = require("mkdirp");
-// Helper functions
-function removeFormating(item) {
-  return item.replace(/\t|\n/g, " ");
-}
+const formatDate = require("./helperFunctions/formatDate");
+
 // create string for key, pair it with it's value
 function createKeyAndValue(key, dataArray, metadata) {
   for (let index = 0; index < dataArray.length; index++) {
@@ -46,11 +43,25 @@ function extractMetadata(docPath) {
         const metadata = {};
 
         // Extract CASE TITLE
-        const caseTitleRegex = /BETWEEN\s*([\s\S]+?)-end!/;
-        const caseTitleMatch = caseTitleRegex.exec(text);
-        metadata.case_title = caseTitleMatch
-          ? removeFormating(caseTitleMatch[1].trim())
-          : "";
+        metadata.case_title = path.basename(docPath, path.extname(docPath));
+        const PstartIndex = text.search(/BETWEEN(?::)?/);
+        const PstopIndex = text.search(/Respondent\(s\)-end!/);
+        const PtextFromIndex = text.slice(PstartIndex, PstopIndex);
+        const partiesRegex = /(\s+[A-Z \(\)]+\s?(?:-)?)/g;
+        // /(?<=(\s*\d+\.\s*)?)([\s\S\(\)]*)/g;
+        // const partiesRegex = /(?<=BETWEEN)(?::\s*)?([\s\S]+?)-end!/g;
+        // /(?<=BETWEEN)(?::\s*)?(?:\s*\d+\.\s*)?([\s\S]+?)-end!/;
+        // /BETWEEN(?:\s*\d+\.\s*)?([A-Z\s-]+)\s*(?:-\s*[A-Za-z\s\(\)]+)?\s*AND\s*([A-Z\s-]+)\s*-\s*[A-Za-z\s\(\)]+-end!/;
+        // const partiesRegex = /BETWEEN\s*([\s\S]+?)-end!/;
+        const partiesMatch = PtextFromIndex.match(partiesRegex);
+        const ex = partiesMatch.map((item) => item.trim());
+        const app = ex.slice(0, ex.indexOf("A"));
+        const res = ex.slice(ex.indexOf("AND") + 1);
+        createKeyAndValue("parties_0", app, metadata);
+        createKeyAndValue("parties_1", res, metadata);
+        // metadata.parties = partiesMatch
+        //   ? removeFormating(partiesMatch[1].trim())
+        //   : "";
 
         // Extract COURT
         const courts = [
@@ -76,7 +87,11 @@ function extractMetadata(docPath) {
         const datesRegex =
           /ON\s*(?:MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY|SATURDAY|SUNDAY),\s*THE\s*(?:\d{1,2}(?:TH|ST|ND|RD) DAY OF)?\s*(?:JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER),?\s*\d{4}/i;
         const datesMatches = text.match(datesRegex);
-        metadata.date = datesMatches ? datesMatches[0].replace("ON ", "") : "";
+        // /[d]+(?:JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER)\s*\d{4}/
+        const dateString = datesMatches
+          ? datesMatches[0].replace("ON ", "")
+          : "";
+        metadata.date = formatDate(dateString);
         metadata.year = datesMatches
           ? Math.max(
               ...datesMatches.map((date) => parseInt(date.split(",")[2]))
@@ -119,7 +134,7 @@ function extractMetadata(docPath) {
         // const JtextFromIndex = text.slice(JstartIndex, JstopIndex);
         // console.log(JtextFromIndex);
         const judgesRegex =
-          /(?<=BEFORE THEIR (?:LORDSHIPS:|JUDGES:))([A-Z\s\-,]+)\s*(?=-end!)/g;
+          /(?<=BEFORE THEIR (?:LORDSHIPS:?|JUDGES:?))([A-Z\s\-,]+)\s*(?=-end!)/g;
         // const judgesRegex = /(?<=\n+)[A-Z\s\-,]+(JSC|JCA)/g;
         const matches = text.match(judgesRegex);
 
@@ -130,6 +145,19 @@ function extractMetadata(docPath) {
           ? matches.map((item) => item.trim().split(/\n+/)).flat()
           : [];
         createKeyAndValue("judge", allJudges, metadata);
+
+        // Extract legal representation
+        const repstartIndex = text.indexOf("REPRESENTATION");
+        const repstopIndex = text.indexOf("ISSUES FROM THE CAUSE(S) OF ACTION");
+        const reptextFromIndex = text.slice(repstartIndex, repstopIndex);
+        // separate the respondent from appellant using AND
+        const ArrayOfReps = reptextFromIndex.split("AND");
+        const reparearegex = /(?<=\s+)[A-Z \.]+(?:ESQ\.|Esq\.)/g;
+        const repApp = ArrayOfReps[0].match(reparearegex);
+        const repRes = ArrayOfReps[1].match(reparearegex);
+        createKeyAndValue("representation_appellant", repApp, metadata);
+        createKeyAndValue("representation_respondent", repRes, metadata);
+
         // Generate unique doc_id
         metadata.doc_id = path.basename(docPath, path.extname(docPath));
 

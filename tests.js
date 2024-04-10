@@ -54,5 +54,6 @@ console.log(areasOfLaw);
 //   "area_of_law_2": "Contract Law"
 
 // }
+/(?<=BETWEEN(?::))([\s\S]+?)-end!/g;
 const judgesRegex =
   /(?<=BEFORE THEIR (?:LORDSHIPS:|JUDGES:))([A-Z\s\-,]+)\s*(?=-end!)/g;
