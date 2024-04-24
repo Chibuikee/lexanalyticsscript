@@ -104,6 +104,15 @@ function extractMetadata(docPath) {
           metadata[`area_of_law_${index}`] = UniqueAreasofLaw[index];
         }
 
+        // semantic_tags EXTRACTIONS
+        metadata["semantic_tags_0"] = "Caselaw";
+        metadata["semantic_tags_1"] = "legal document";
+        metadata["semantic_tags_2"] = "Case";
+
+        //SEMANTIC TAG FOR SUPREME COURT CASES
+        if (metadata.court == "SUPREME COURT") {
+          metadata["semantic-tags_3"] = "high_profile_case";
+        }
         // JUDGES EXTRACTIONS
         // const JstartIndex = text.search(
         //   /(?<=BEFORE THEIR (?:LORDSHIPS:|JUDGES:))/
@@ -186,6 +195,9 @@ async function processDocuments(inputDir, outputDir) {
         console.error(`Error processing ${file}: ${err.message}`);
       }
     }
+    // else{
+
+    // }
   }
 }
 
