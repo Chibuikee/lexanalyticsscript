@@ -5,8 +5,10 @@ const formatDate = require("./helperFunctions/formatDate");
 
 // create string for key, pair it with it's value
 function createKeyAndValue(key, dataArray, metadata) {
-  for (let index = 0; index < dataArray.length; index++) {
-    metadata[`${key}_${index}`] = dataArray[index];
+  if (dataArray !== null) {
+    for (let index = 0; index < dataArray.length; index++) {
+      metadata[`${key}_${index}`] = dataArray[index];
+    }
   }
 }
 
@@ -17,7 +19,9 @@ function extractMetadata(docPath) {
     mammoth
       .extractRawText({ path: docPath })
       .then((result) => {
+        console.log("text extracting");
         const text = result.value;
+        console.log("text extracted", text);
         const metadata = {};
 
         // Extract CASE TITLE
@@ -89,6 +93,18 @@ function extractMetadata(docPath) {
         const citationMatch = citationRegex.exec(text);
         metadata.lex_citation = citationMatch ? citationMatch[0] : "";
 
+        // other citation numbers
+        const otherCitstartIndex = text.indexOf("OTHER CITATIONS");
+        const otherCitstopIndex = text.indexOf("BEFORE THEIR LORDSHIPS");
+        const otherCittextFromIndex = text.slice(
+          otherCitstartIndex,
+          otherCitstopIndex
+        );
+        const citeRegex = /(?<=\n+)(.+)/g;
+        const listOfCitations = otherCittextFromIndex.match(citeRegex);
+        // console.log("nodeeee", listOfCitations);
+        createKeyAndValue("other_citations", listOfCitations, metadata);
+
         // Extract AREAS OF LAW
         const startIndex = text.indexOf("ISSUES FROM THE CAUSE(S) OF ACTION");
         const stopIndex = text.indexOf("CASE SUMMARY");
@@ -144,6 +160,29 @@ function extractMetadata(docPath) {
         const repRes = ArrayOfReps[1].match(reparearegex);
         createKeyAndValue("representation_appellant", repApp, metadata);
         createKeyAndValue("representation_respondent", repRes, metadata);
+        // ORIGINATING COURTS
+        const startOriginating = text.indexOf("ORIGINATING COURT(S)");
+        const stopOriginating = text.indexOf("REPRESENTATION");
+        const textFromOriginating = text.slice(
+          startOriginating,
+          stopOriginating
+        );
+        // const originatingregex = /([\w\s\S]*)/g;
+
+        const originatingregex = /(?<=\d\.\t)(.+)/g;
+        // /(?<=\d\.\t)([\w\s\S]+)/g;
+        // /(?<=ORIGINATING COURT\(S\)\s*\n)(.*(?:\n(?!REPRESENTATION).*)*)/;
+        // /(.*(?:\n(?!REPRESENTATION).*)*)/;
+        const originatingallMatches =
+          textFromOriginating.match(originatingregex);
+
+        // [0].trim().split(/\t/));
+        const originatingCourts = originatingallMatches.map((item) =>
+          item.replace("-end!", "")
+        );
+        createKeyAndValue("originating_court", originatingCourts, metadata);
+
+        // console.log("Node", ori);
 
         // Generate unique doc_id
         metadata.doc_id = path.basename(docPath, path.extname(docPath));
@@ -153,7 +192,10 @@ function extractMetadata(docPath) {
 
         resolve(metadata);
       })
-      .catch((err) => reject(err));
+      .catch((err) => {
+        console.log("failed to read the doc", err);
+        reject(err);
+      });
   });
 }
 
@@ -183,7 +225,7 @@ async function processDocuments(inputDir, outputDir) {
   const files = fs.readdirSync(inputDir);
   for (const file of files) {
     // check whether the file name ends with .docx
-    if (file.endsWith(".docx")) {
+    if (file.endsWith(".doc")) {
       const docPath = path.join(inputDir, file);
       try {
         const metadata = await extractMetadata(docPath);
@@ -194,16 +236,17 @@ async function processDocuments(inputDir, outputDir) {
         // console.log(err);
         console.error(`Error processing ${file}: ${err.message}`);
       }
+    } else {
+      console.log("File type doesn't match");
     }
-    // else{
-
-    // }
   }
 }
 
 // input and output path
+const inputDirectory = "path/cases2";
+// const inputDirectory = "path/casesG";
 // const inputDirectory = "path/cases";
 // const inputDirectory = "path/case";
-const inputDirectory = "path/case1";
+// const inputDirectory = "path/case1";
 const outputDirectory = "path/to";
 processDocuments(inputDirectory, outputDirectory);

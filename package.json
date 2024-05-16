@@ -11,6 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "mammoth": "^1.6.0",
-    "mkdirp": "^3.0.1"
+    "mkdirp": "^3.0.1",
+    "word-extractor": "^1.0.4"
   }
 }
