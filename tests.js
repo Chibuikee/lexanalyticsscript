@@ -37,8 +37,8 @@ async function processDocuments(inputDir) {
     // check whether the file name ends with .docx
     console.log(file);
     if (file.endsWith(".doc")) {
-      const news = docFilesExtractor(inputDir, file);
-      console.log(news);
+      const fileText = await docFilesExtractor(inputDir, file);
+      // console.log(fileText);
     } else {
       console.log("File type doesn't match");
     }

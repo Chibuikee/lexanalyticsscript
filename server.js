@@ -226,6 +226,7 @@ async function processDocuments(inputDir, outputDir) {
   for (const file of files) {
     // check whether the file name ends with .docx
     if (file.endsWith(".doc")) {
+      // const fileText = await docFilesExtractor(inputDir, file);
       const docPath = path.join(inputDir, file);
       try {
         const metadata = await extractMetadata(docPath);

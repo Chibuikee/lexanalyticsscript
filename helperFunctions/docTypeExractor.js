@@ -1,28 +1,28 @@
 const WordExtractor = require("word-extractor");
-const fs = require("node:fs");
-const path = require("node:path");
-const extractor = new WordExtractor();
-function docFilesExtractor(inputDir, file) {
-  const Filename = path.join(inputDir, file);
+const fs = require("fs");
+const path = require("path");
 
-  const extracted = extractor.extract(Filename);
-  const outputAt = "path/test";
-  let hiText;
+const extractor = new WordExtractor();
+
+async function docFilesExtractor(inputDir, file) {
   try {
-    extracted.then(function (doc) {
-      if (!fs.existsSync(outputAt)) {
-        fs.mkdirSync(outputAt);
-      }
-      const outputFilename = path.join(outputAt, `metadata.js`);
-      hiText = "doc.getBody()";
-      fs.writeFileSync(outputFilename, doc.getBody());
-    });
+    const filename = path.join(inputDir, file);
+    const extracted = await extractor.extract(filename);
+
+    const outputDir = path.join(__dirname, "output");
+    if (!fs.existsSync(outputDir)) {
+      fs.mkdirSync(outputDir);
+    }
+
+    const outputFilename = path.join(outputDir, `${file}.txt`);
+    fs.writeFileSync(outputFilename, extracted.getBody());
+
+    console.log(`Text extracted from ${file} and saved to ${outputFilename}`);
+    return extracted.getBody();
   } catch (err) {
-    // console.log(err);
     console.error(`Error processing ${file}: ${err.message}`);
+    return null;
   }
-  console.log(hiText);
-  return hiText;
 }
 
 module.exports = docFilesExtractor;
