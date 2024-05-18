@@ -1,6 +1,7 @@
 const WordExtractor = require("word-extractor");
 const fs = require("node:fs");
 const path = require("node:path");
+const docFilesExtractor = require("./helperFunctions/docTypeExractor");
 // const text = `
 // ISSUES FROM THE CAUSE(S) OF ACTION
 // COMMERCIAL LAW - CONTRACTS:- A contractual transaction with an administrative agency – Action arising therefrom – Claim for specific performance - Whether subject to the limitation rule under section 2(a) of the Public Officers Protection Act
@@ -30,34 +31,14 @@ const path = require("node:path");
 //   areasOfLaw.push(match[1].trim());
 // }
 
-const extractor = new WordExtractor();
-
 async function processDocuments(inputDir) {
-  // if (!fs.existsSync(outputDir)) {
-  //   // create the directory for the output
-  //   // mkdirp.sync(outputDir);
-  //   // fs.mkdirSync(outputDir);
-  // }
-
   const files = fs.readdirSync(inputDir);
   for (const file of files) {
     // check whether the file name ends with .docx
-    // console.log(file);
+    console.log(file);
     if (file.endsWith(".doc")) {
-      const Filename = path.join(inputDir, file);
-      // console.log("file name", outputFilename);
-      const extracted = extractor.extract(Filename);
-      try {
-        await extracted.then(function (doc) {
-          console.log(
-            "hi thisb isbwherethe linwofbtyest start6sb ",
-            doc.getBody()
-          );
-        });
-      } catch (err) {
-        // console.log(err);
-        console.error(`Error processing ${file}: ${err.message}`);
-      }
+      const news = docFilesExtractor(inputDir, file);
+      console.log(news);
     } else {
       console.log("File type doesn't match");
     }
