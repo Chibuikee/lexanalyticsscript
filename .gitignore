@@ -6,8 +6,9 @@
 /.pnp
 .pnp.js
 /path
-.path
+./path
 /helperFunctions/output
+./helperFunctions/output
 # testing
 /coverage
 
