@@ -142,8 +142,10 @@ async function MetadataProcessor(docPath, text) {
   const reptextFromIndex = text.slice(repstartIndex, repstopIndex);
   // separate the respondent from appellant using AND
   const ArrayOfReps = reptextFromIndex.split("AND");
-  const reparearegex = /\b[A-Z][A-Z .-]+\b/g;
-  //   const reparearegex = /(?<=\s+)[A-Z \.]+(?:ESQ\.|Esq\.|S.A.N\.)/g;
+  //   worked for ATTORNEY-GENERAL, OGUN STATE V. ALHAJI AYINKE ABERUAGBA
+
+  //   const reparearegex = /\b[A-Z][A-Z .-]+\b/g;
+  const reparearegex = /(?<=\s+)[A-Z \.]+(?:ESQ\.|Esq\.|S.A.N\.)/g;
   const repApp = ArrayOfReps[0]?.match(reparearegex);
   const repRes = ArrayOfReps[1]?.match(reparearegex);
 
