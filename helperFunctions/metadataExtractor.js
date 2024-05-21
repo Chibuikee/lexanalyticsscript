@@ -3,7 +3,7 @@ const path = require("path");
 // create string for key, pair it with it's value
 function createKeyAndValue(key, dataArray, metadata) {
   if (dataArray !== null) {
-    dataArray = dataArray?.slice(0, 20);
+    // dataArray = dataArray?.slice(0, 20);
 
     for (let index = 0; index < dataArray?.length; index++) {
       metadata[`${key}_${index}`] = dataArray[index];
@@ -17,19 +17,25 @@ async function MetadataProcessor(docPath, text) {
 
   // Extract CASE TITLE
   metadata.case_title = path.basename(docPath, path.extname(docPath));
-  const PstartIndex = text.search(/BETWEEN(?::)?/);
-  const PstopIndex = text.search(/Respondent\(s\)-end!/);
-  const PtextFromIndex = text.slice(PstartIndex, PstopIndex);
-  const partiesRegex = /(\s+[A-Z \(\)]+\s?(?:-)?)/g;
-  // /(?<=(\s*\d+\.\s*)?)([\s\S\(\)]*)/g;
-  // const partiesRegex = /(?<=BETWEEN)(?::\s*)?([\s\S]+?)-end!/g;
+  const PstartIndex = text.search(/(?:BETWEEN)(?::)?/);
+  const PstopIndex = text.search(/ORIGINATING COURT/);
+  const PstopIndex2 = text.search(/REPRESENTATION/);
+  // const PstopIndex = text.search(/Respondent\(s\)-end!/);
+  const resolvedPIndex = PstopIndex == -1 ? PstopIndex2 : PstopIndex;
+  const PtextFromIndex = text.slice(PstartIndex + 7, resolvedPIndex);
+
+  const partiesRegex = /\b[A-Z][A-Z .-]+\b/g;
+  // const partiesRegex = /(\s+[A-Z \(\)]+\s?(?:- )?)/g;
+  // this has R as the last party
+  // const partiesRegex = /(\s+[A-Z \(\)]+\s?(?:-)?)/g;
+
   // /(?<=BETWEEN)(?::\s*)?(?:\s*\d+\.\s*)?([\s\S]+?)-end!/;
-  // /BETWEEN(?:\s*\d+\.\s*)?([A-Z\s-]+)\s*(?:-\s*[A-Za-z\s\(\)]+)?\s*AND\s*([A-Z\s-]+)\s*-\s*[A-Za-z\s\(\)]+-end!/;
   // const partiesRegex = /BETWEEN\s*([\s\S]+?)-end!/;
   const partiesMatch = PtextFromIndex.match(partiesRegex);
   const ex = partiesMatch.map((item) => item.trim());
-  const app = ex.slice(0, ex.indexOf("A"));
+  const app = ex.slice(0, ex.indexOf("AND"));
   const res = ex.slice(ex.indexOf("AND") + 1);
+
   createKeyAndValue("parties_0", app, metadata);
   createKeyAndValue("parties_1", res, metadata);
   // metadata.parties = partiesMatch
@@ -93,9 +99,14 @@ async function MetadataProcessor(docPath, text) {
   createKeyAndValue("other_citations", listOfCitations, metadata);
 
   // Extract AREAS OF LAW
-  const startIndex = text.indexOf("ISSUES FROM THE CAUSE(S) OF ACTION");
+  const startIndex = text.search(/\bISSUE.+ OF ACTION\b/g);
+  // ISSUES FROM THE CAUSE(S) OF ACTION
   const stopIndex = text.indexOf("CASE SUMMARY");
-  const textFromIndex = text.slice(startIndex + 35, stopIndex);
+  const stopIndex2 = text.search(/MAI?N JUDGE?MENT/);
+  // first check if case summary is available else use main judgment
+  const resolvedIndex = stopIndex == -1 ? stopIndex2 : stopIndex;
+  const textFromIndex = text.slice(startIndex + 35, resolvedIndex);
+  // console.log("respondents", resolvedIndex);
   const arearegex = /(?<=\n+)[A-Z ]+(?=.+(?:-|:))/g;
   const allMatches = textFromIndex.match(arearegex);
   // console.log(allMatches);
@@ -138,14 +149,15 @@ async function MetadataProcessor(docPath, text) {
 
   // Extract legal representation
   const repstartIndex = text.indexOf("REPRESENTATION");
-  const repstopIndex = text.indexOf("ISSUES FROM THE CAUSE(S) OF ACTION");
+  const repstopIndex = text.search(/\bISSUE.+ OF ACTION\b/g);
   const reptextFromIndex = text.slice(repstartIndex, repstopIndex);
   // separate the respondent from appellant using AND
   const ArrayOfReps = reptextFromIndex.split("AND");
   //   worked for ATTORNEY-GENERAL, OGUN STATE V. ALHAJI AYINKE ABERUAGBA
 
+  const reparearegex = /(\b[A-Z][A-Z.\s]+ [A-Z-.]+\b)/g;
+  // const reparearegex = /(?<=\s+)[A-Z \.]+(?:ESQ\.|Esq\.|S.A.N)/g;
   //   const reparearegex = /\b[A-Z][A-Z .-]+\b/g;
-  const reparearegex = /(?<=\s+)[A-Z \.]+(?:ESQ\.|Esq\.|S.A.N\.)/g;
   const repApp = ArrayOfReps[0]?.match(reparearegex);
   const repRes = ArrayOfReps[1]?.match(reparearegex);
 
