@@ -45,7 +45,7 @@ async function processDocuments(inputDir, outputDir) {
       try {
         const fileText = await docFilesExtractor(docPath, file);
         // check if the text is extracted properly
-        logSaver(file, fileText);
+        // logSaver(file, fileText);
         const metaData = await MetadataProcessor(docPath, fileText);
         saveMetadataAsJson(metaData, outputDir);
         console.log(`Metadata extracted and saved for: ${file}`);
@@ -59,10 +59,10 @@ async function processDocuments(inputDir, outputDir) {
 }
 
 // input and output path
-// const inputDirectory = "path/cases2";
+const inputDirectory = "path/cases2";
 // const inputDirectory = "path/casesG";
 // const inputDirectory = "path/cases";
 // const inputDirectory = "path/case";
-const inputDirectory = "path/case1";
+// const inputDirectory = "path/case1";
 const outputDirectory = "path/to";
 processDocuments(inputDirectory, outputDirectory);

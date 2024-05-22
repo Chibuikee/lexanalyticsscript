@@ -1,5 +1,7 @@
 const formatDate = require("./formatDate");
 const path = require("path");
+const judgesExtraction = require("./targetTextAnalyzer");
+const IdentifierIndexResolver = require("./indexResolver");
 // create string for key, pair it with it's value
 function createKeyAndValue(key, dataArray, metadata) {
   if (dataArray !== null) {
@@ -18,26 +20,64 @@ async function MetadataProcessor(docPath, text) {
   // Extract CASE TITLE
   metadata.case_title = path.basename(docPath, path.extname(docPath));
   const PstartIndex = text.search(/(?:BETWEEN)(?::)?/);
-  const PstopIndex = text.search(/ORIGINATING COURT/);
-  const PstopIndex2 = text.search(/REPRESENTATION/);
-  // const PstopIndex = text.search(/Respondent\(s\)-end!/);
-  const resolvedPIndex = PstopIndex == -1 ? PstopIndex2 : PstopIndex;
+  // const PstopIndex = text.search(/ORIGINATING COURT/);
+  // const PstopIndex2 = text.search(/REPRESENTATION/);
+  // const PstopIndex3 = text.search(/\bISSUE.+ OF ACTION\b/g);
+  // // const PstopIndex = text.search(/Respondent\(s\)-end!/);
+  // const resolvedPIndex =
+  //   PstopIndex !== -1
+  //     ? PstopIndex
+  //     : PstopIndex2 !== -1
+  //     ? PstopIndex2
+  //     : PstopIndex3;
+
+  const regexes = [
+    // /(?:BETWEEN)(?::)?/,
+    /ORIGINATING COURT/,
+    /REPRESENTATION/,
+    /\bISSUE.+ OF ACTION\b/g,
+  ];
+
+  let resolvedPIndex = -1;
+  // BETWEEN must be present before this code
+  //  runs else just use IN THE to determine the stop index
+  if (text.search(/(?:BETWEEN)(?::)?/) !== -1) {
+    for (const regex of regexes) {
+      const index = text.search(regex);
+      if (index !== -1) {
+        resolvedPIndex = index;
+        break;
+      }
+    }
+  } else {
+    // console.log("ran");
+    const indexes = [/IN THE /, /COURT OF APPEAL/];
+
+    resolvedPIndex = IdentifierIndexResolver(indexes, text);
+  }
+
+  // console.log(resolvedPIndex);
   const PtextFromIndex = text.slice(PstartIndex + 7, resolvedPIndex);
-
+  // console.log(PtextFromIndex);
   const partiesRegex = /\b[A-Z][A-Z .-]+\b/g;
-  // const partiesRegex = /(\s+[A-Z \(\)]+\s?(?:- )?)/g;
-  // this has R as the last party
-  // const partiesRegex = /(\s+[A-Z \(\)]+\s?(?:-)?)/g;
-
-  // /(?<=BETWEEN)(?::\s*)?(?:\s*\d+\.\s*)?([\s\S]+?)-end!/;
-  // const partiesRegex = /BETWEEN\s*([\s\S]+?)-end!/;
   const partiesMatch = PtextFromIndex.match(partiesRegex);
   const ex = partiesMatch.map((item) => item.trim());
-  const app = ex.slice(0, ex.indexOf("AND"));
-  const res = ex.slice(ex.indexOf("AND") + 1);
 
-  createKeyAndValue("parties_0", app, metadata);
-  createKeyAndValue("parties_1", res, metadata);
+  if (PstartIndex == -1) {
+    // this regex is used to match every name except V or V.
+    const regex = /.{3,}/g;
+    const partiesMatch = PtextFromIndex.match(regex);
+    // console.log("names found", partiesMatch);
+    createKeyAndValue("parties_0", [partiesMatch[0]], metadata);
+    createKeyAndValue("parties_1", [partiesMatch[1]], metadata);
+  } else {
+    // names before and is used for appellant while names after respondent
+    const app = ex.slice(0, ex.indexOf("AND"));
+    const res = ex.slice(ex.indexOf("AND") + 1);
+    createKeyAndValue("parties_0", app, metadata);
+    createKeyAndValue("parties_1", res, metadata);
+  }
+
   // metadata.parties = partiesMatch
   //   ? removeFormating(partiesMatch[1].trim())
   //   : "";
@@ -64,14 +104,13 @@ async function MetadataProcessor(docPath, text) {
 
   // Extract DATE and YEAR
   const datesRegex =
-    /ON\s*(?:MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY|SATURDAY|SUNDAY),\s*THE\s*(?:\d{1,2}(?:TH|ST|ND|RD) DAY OF)?\s*(?:JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER),?\s*\d{4}/i;
+    /(ON\s*)?(?:MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY|SATURDAY|SUNDAY)?,?(\s*THE\s*)?(?:\d{1,2}(?:TH|ST|ND|RD) DAY OF)?\s*(?:JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER),?\s*\d{4}/i;
   const datesMatches = text.match(datesRegex);
   // /[d]+(?:JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER)\s*\d{4}/
   const dateString = datesMatches ? datesMatches[0].replace("ON ", "") : "";
-  metadata.date = formatDate(dateString);
-  metadata.year = datesMatches
-    ? Math.max(...datesMatches.map((date) => parseInt(date.split(",")[2])))
-    : "";
+  const completeDate = formatDate(dateString);
+  metadata.date = completeDate;
+  metadata.year = completeDate ? parseInt(completeDate?.split("-")[2]) : "";
 
   const suitNumberRegex = /(CA|SC)[.\/\w\s-]+\d{4}/;
 
@@ -128,20 +167,23 @@ async function MetadataProcessor(docPath, text) {
     metadata["semantic-tags_3"] = "high_profile_case";
   }
   // JUDGES EXTRACTIONS
-  // const JstartIndex = text.search(
-  //   /(?<=BEFORE THEIR (?:LORDSHIPS:|JUDGES:))/
-  // );
-  // const JstopIndex = text.search(/-end!/);
-  // const JtextFromIndex = text.slice(JstartIndex, JstopIndex);
-  // console.log(JtextFromIndex);
-  const judgesRegex =
-    /(?<=BEFORE THEIR (?:LORDSHIPS:?|JUDGES:?))([A-Z\s\-,]+)\s*(?=-end!)/g;
-  // const judgesRegex = /(?<=\n+)[A-Z\s\-,]+(JSC|JCA)/g;
-  const matches = text.match(judgesRegex);
-
-  // metadata.judges = matches
-  //   ? matches.map((item) => item.trim().split(/\n+/)).flat()
-  //   : [];
+  const JstartRegex = /\bBEFORE.*(LORDSHIPS:?|JUDGES?:?)\b/;
+  // determines last index to slice text
+  const Jregexes = [
+    /BETWEEN/,
+    /REPRESENTATION/,
+    // /ORIGINATING COURT/,
+    // /\bISSUE.+ OF ACTION\b/g,
+  ];
+  // console.log("HIII", JstartIndex);
+  const cutText = judgesExtraction(
+    JstartRegex,
+    Jregexes,
+    text,
+    text.search(JstartRegex)
+  );
+  const judgesRegex = /(\b[A-Z].+(SC|CA|S.C|C.A|N|J)\b)/g;
+  const matches = cutText.match(judgesRegex);
   const allJudges = matches
     ? matches.map((item) => item.trim().split(/\n+/)).flat()
     : [];
@@ -149,23 +191,25 @@ async function MetadataProcessor(docPath, text) {
 
   // Extract legal representation
   const repstartIndex = text.indexOf("REPRESENTATION");
-  const repstopIndex = text.search(/\bISSUE.+ OF ACTION\b/g);
-  const reptextFromIndex = text.slice(repstartIndex, repstopIndex);
-  // separate the respondent from appellant using AND
-  const ArrayOfReps = reptextFromIndex.split("AND");
-  //   worked for ATTORNEY-GENERAL, OGUN STATE V. ALHAJI AYINKE ABERUAGBA
+  if (repstartIndex !== -1) {
+    const repstopIndex = text.search(/\bISSUE.+ OF ACTION\b/g);
+    const reptextFromIndex = text.slice(repstartIndex + 14, repstopIndex);
+    // separate the respondent from appellant using AND
+    const ArrayOfReps = reptextFromIndex.split("AND");
+    //   worked for ATTORNEY-GENERAL, OGUN STATE V. ALHAJI AYINKE ABERUAGBA
 
-  const reparearegex = /(\b[A-Z][A-Z.\s]+ [A-Z-.]+\b)/g;
-  // const reparearegex = /(?<=\s+)[A-Z \.]+(?:ESQ\.|Esq\.|S.A.N)/g;
-  //   const reparearegex = /\b[A-Z][A-Z .-]+\b/g;
-  const repApp = ArrayOfReps[0]?.match(reparearegex);
-  const repRes = ArrayOfReps[1]?.match(reparearegex);
+    const reparearegex = /(\b[A-Z][A-Z.\s]+ [A-Z-.]+\b)/g;
+    // const reparearegex = /(?<=\s+)[A-Z \.]+(?:ESQ\.|Esq\.|S.A.N)/g;
+    //   const reparearegex = /\b[A-Z][A-Z .-]+\b/g;
+    const repApp = ArrayOfReps[0]?.match(reparearegex);
+    const repRes = ArrayOfReps[1]?.match(reparearegex);
 
-  if (repApp) {
-    createKeyAndValue("representation_appellant", repApp, metadata);
-  }
-  if (repRes) {
-    createKeyAndValue("representation_respondent", repRes, metadata);
+    if (repApp) {
+      createKeyAndValue("representation_appellant", repApp, metadata);
+    }
+    if (repRes) {
+      createKeyAndValue("representation_respondent", repRes, metadata);
+    }
   }
   // ORIGINATING COURTS
   const startOriginating = text.indexOf("ORIGINATING COURT(S)");
