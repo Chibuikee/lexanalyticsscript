@@ -1,6 +1,6 @@
 const formatDate = require("./formatDate");
 const path = require("path");
-const judgesExtraction = require("./targetTextAnalyzer");
+const targetTextAnalyzer = require("./targetTextAnalyzer");
 const IdentifierIndexResolver = require("./indexResolver");
 // create string for key, pair it with it's value
 function createKeyAndValue(key, dataArray, metadata) {
@@ -16,7 +16,23 @@ function createKeyAndValue(key, dataArray, metadata) {
 async function MetadataProcessor(docPath, text) {
   // console.log("text extracted",docPath, text);
   const metadata = {};
-
+  const courts = [
+    "SUPREME COURT",
+    "FEDERAL SUPREME COURT",
+    "COURT OF APPEAL",
+    "FEDERAL HIGH COURT",
+    "HIGH COURT",
+    "QUEEN'S BENCH",
+    "APPEAL COURT DIVISION",
+    "KING'S BENCH DIVISION",
+    "KINGS COUNCIL",
+    "APPEAL COURT",
+    "HOUSE OF LORDS",
+    "DIVISIONAL COURT",
+    "PRIVY COUNCIL",
+    "WACA",
+    "CHANCERY",
+  ];
   // Extract CASE TITLE
   metadata.case_title = path.basename(docPath, path.extname(docPath));
   const PstartIndex = text.search(/(?:BETWEEN)(?::)?/);
@@ -51,7 +67,7 @@ async function MetadataProcessor(docPath, text) {
     }
   } else {
     // console.log("ran");
-    const indexes = [/IN THE /, /COURT OF APPEAL/];
+    const indexes = [/IN THE /, /COURT OF APPEAL/, /SUPREME COURT/];
 
     resolvedPIndex = IdentifierIndexResolver(indexes, text);
   }
@@ -83,23 +99,7 @@ async function MetadataProcessor(docPath, text) {
   //   : "";
 
   // Extract COURT
-  const courts = [
-    "SUPREME COURT",
-    "FEDERAL SUPREME COURT",
-    "COURT OF APPEAL",
-    "FEDERAL HIGH COURT",
-    "HIGH COURT",
-    "QUEEN'S BENCH",
-    "APPEAL COURT DIVISION",
-    "KING'S BENCH DIVISION",
-    "KINGS COUNCIL",
-    "APPEAL COURT",
-    "HOUSE OF LORDS",
-    "DIVISIONAL COURT",
-    "PRIVY COUNCIL",
-    "WACA",
-    "CHANCERY",
-  ];
+
   metadata.court = courts.find((court) => text.includes(court)) || "";
 
   // Extract DATE and YEAR
@@ -121,7 +121,7 @@ async function MetadataProcessor(docPath, text) {
   metadata.suit_number = suitNumberMatch ? suitNumberMatch[0] : "";
 
   // Extract Citation
-  const citationRegex = /LEX\s.*\b\d{4}\b/;
+  const citationRegex = /LEX\s.*\d+\b/;
   const citationMatch = citationRegex.exec(text);
   metadata.lex_citation = citationMatch ? citationMatch[0] : "";
 
@@ -167,7 +167,10 @@ async function MetadataProcessor(docPath, text) {
     metadata["semantic-tags_3"] = "high_profile_case";
   }
   // JUDGES EXTRACTIONS
-  const JstartRegex = /\bBEFORE.*(LORDSHIPS:?|JUDGES?:?)\b/;
+  const JstartRegex = /\bBEFORE.*(LORDSHIPS?:?|JUDGES?:?)\b/;
+  const JstartRegex1 = /\bBEFORE:/;
+  const alphaCondition =
+    text.search(JstartRegex) == -1 ? JstartRegex1 : JstartRegex;
   // determines last index to slice text
   const Jregexes = [
     /BETWEEN/,
@@ -176,12 +179,13 @@ async function MetadataProcessor(docPath, text) {
     // /\bISSUE.+ OF ACTION\b/g,
   ];
   // console.log("HIII", JstartIndex);
-  const cutText = judgesExtraction(
-    JstartRegex,
+  const cutText = targetTextAnalyzer(
+    alphaCondition,
     Jregexes,
     text,
-    text.search(JstartRegex)
+    text.search(alphaCondition)
   );
+  // console.log("text cut", cutText);
   const judgesRegex = /(\b[A-Z].+(SC|CA|S.C|C.A|N|J)\b)/g;
   const matches = cutText.match(judgesRegex);
   const allJudges = matches
@@ -197,7 +201,8 @@ async function MetadataProcessor(docPath, text) {
     // separate the respondent from appellant using AND
     const ArrayOfReps = reptextFromIndex.split("AND");
     //   worked for ATTORNEY-GENERAL, OGUN STATE V. ALHAJI AYINKE ABERUAGBA
-
+    //  this captures lower case names
+    // (\b[A-Z]*(\w[ a-z.]+)+, (Esq|SAN)\b)
     const reparearegex = /(\b[A-Z][A-Z.\s]+ [A-Z-.]+\b)/g;
     // const reparearegex = /(?<=\s+)[A-Z \.]+(?:ESQ\.|Esq\.|S.A.N)/g;
     //   const reparearegex = /\b[A-Z][A-Z .-]+\b/g;

@@ -13,7 +13,7 @@ function saveMetadataAsJson(metadata, outputDir) {
     const existingData = fs.readFileSync(outputFilename, "utf8");
     jsonData = JSON.parse(existingData);
   }
-
+  console.log(metadata);
   jsonData[metadata.doc_id] = metadata;
 
   fs.writeFileSync(outputFilename, JSON.stringify(jsonData, null, 4));
@@ -59,10 +59,10 @@ async function processDocuments(inputDir, outputDir) {
 }
 
 // input and output path
-const inputDirectory = "path/cases2";
+// const inputDirectory = "path/cases2";
 // const inputDirectory = "path/casesG";
 // const inputDirectory = "path/cases";
-// const inputDirectory = "path/case";
+const inputDirectory = "path/case";
 // const inputDirectory = "path/case1";
 const outputDirectory = "path/to";
 processDocuments(inputDirectory, outputDirectory);

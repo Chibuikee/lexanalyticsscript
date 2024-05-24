@@ -1,7 +1,7 @@
-function targetTextExtractor(alfaCondition, regexes, text, startIndex) {
+function targetTextExtractor(alphaCondition, regexes, text, startIndex) {
   let resolvedIndex = -1;
   //   if (text.search(/BEFORE THEIR LORDSHIPS/) !== -1) {
-  if (text.search(alfaCondition) !== -1) {
+  if (text.search(alphaCondition) !== -1) {
     for (const regex of regexes) {
       const index = text.search(regex);
       if (index !== -1) {
