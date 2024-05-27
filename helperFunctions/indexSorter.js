@@ -1,3 +1,5 @@
+// indexSorter which checks all the regex index
+// and sorts in ascending, returning the first or smallest number
 function indexSortInAscending(regexes, text) {
   let indexesArray = [];
   for (const regex of regexes) {

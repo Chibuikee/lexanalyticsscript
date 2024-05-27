@@ -1,3 +1,4 @@
+// deprecated in favour of IndexSorter
 function targetTextExtractor(regexes, text, startIndex) {
   let resolvedIndex = -1;
   //   if (text.search(/BEFORE THEIR LORDSHIPS/) !== -1) {

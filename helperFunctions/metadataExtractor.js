@@ -2,6 +2,7 @@ const formatDate = require("./formatDate");
 const path = require("path");
 const targetTextAnalyzer = require("./targetTextAnalyzer");
 const IdentifierIndexResolver = require("./indexResolver");
+const indexSortInAscending = require("./indexSorter");
 // create string for key, pair it with it's value
 function createKeyAndValue(key, dataArray, metadata) {
   if (dataArray !== null) {
@@ -38,7 +39,7 @@ async function MetadataProcessor(docPath, text) {
   const PstartIndex = text.search(/(?:BETWEEN)(?::)?/);
   // const PstopIndex = text.search(/ORIGINATING COURT/);
   // const PstopIndex2 = text.search(/REPRESENTATION/);
-  // const PstopIndex3 = text.search(/\bISSUE.+ OF ACTION\b/g);
+  // const PstopIndex3 = text.search(/\bISSUE.+ OF ACTION\b/);
   // // const PstopIndex = text.search(/Respondent\(s\)-end!/);
   // const resolvedPIndex =
   //   PstopIndex !== -1
@@ -59,24 +60,20 @@ async function MetadataProcessor(docPath, text) {
   // BETWEEN must be present before this code
   //  runs else just use IN THE to determine the stop index
   if (text.search(/(?:BETWEEN)(?::)?/) !== -1) {
-    for (const regex of regexes) {
-      const index = text.search(regex);
-      if (index !== -1) {
-        resolvedPIndex = index;
-        break;
-      }
-    }
+    resolvedPIndex = indexSortInAscending(regexes, text);
   } else {
     // console.log("ran");
+    // these indexes are used only when the starting regex is not found
+    // dont use when starting regex is found and dont remove this logic
     const indexes = [
       /IN THE /,
       /COURT OF APPEAL/,
       /SUPREME COURT/,
       /PRIVY COUNCIL/,
-      // /REPRESENTATION/,
+      /REPRESENTATION/,
     ];
 
-    resolvedPIndex = IdentifierIndexResolver(indexes, text);
+    resolvedPIndex = indexSortInAscending(indexes, text);
   }
 
   // console.log(resolvedPIndex);
@@ -159,7 +156,7 @@ async function MetadataProcessor(docPath, text) {
   createKeyAndValue("other_citations", listOfCitations, metadata);
 
   // Extract AREAS OF LAW
-  const startIndex = text.search(/\bISSUE.+ OF ACTIONS?\b/g);
+  const startIndex = text.search(/\bISSUE.+ OF ACTIONS?\b/);
   // ISSUES FROM THE CAUSE(S) OF ACTION
   const stopIndex = text.indexOf("CASE SUMMARY");
   const stopIndex2 = text.search(/MAI?N JUDGE?MENT/);
@@ -188,24 +185,26 @@ async function MetadataProcessor(docPath, text) {
     metadata["semantic-tags_3"] = "high_profile_case";
   }
   // JUDGES EXTRACTIONS
-  const JstartRegex = /\bBEFORE.*(LORDSHIPS?:?|JUDGES?:?)\b/;
-  const JstartRegex1 = /\bBEFORE:/;
-  const alphaCondition =
-    text.search(JstartRegex) == -1 ? JstartRegex1 : JstartRegex;
+  const JstartRegex = [/\bBEFORE.*(LORDSHIPS?:?|JUDGES?:?)\b/, /\bBEFORE:/];
+
+  const JstartIndex = indexSortInAscending(JstartRegex, text);
+  // text.search(JstartRegex) == -1 ? JstartRegex1 : JstartRegex;
   // determines last index to slice text
   const Jregexes = [
     /BETWEEN/,
     /REPRESENTATION/,
     // /ORIGINATING COURT/,
-    // /\bISSUE.+ OF ACTION\b/g,
+    /\bISSUE.+ OF ACTION\b/,
   ];
   // console.log("HIII", JstartIndex);
-  const cutText = targetTextAnalyzer(
-    // alphaCondition,
-    Jregexes,
-    text,
-    text.search(alphaCondition)
-  );
+  const JresolvedIndex = indexSortInAscending(Jregexes, text);
+  const cutText = text.slice(JstartIndex + 24, JresolvedIndex);
+
+  // const cutText = targetTextAnalyzer(
+  //   Jregexes,
+  //   text,
+  //   text.search(alphaCondition)
+  // );
   // console.log("text cut", cutText);
   const judgesRegex = /(\b[A-Z].+(SC|CA|S.C|C.A|N|J)\b)/g;
   const matches = cutText.match(judgesRegex);
@@ -217,7 +216,7 @@ async function MetadataProcessor(docPath, text) {
   // Extract legal representation
   const repstartIndex = text.indexOf("REPRESENTATION");
 
-  const repstopIndex = text.search(/\bISSUE.+ OF ACTIONS?\b/g);
+  const repstopIndex = text.search(/\bISSUE.+ OF ACTIONS?\b/);
 
   if (repstartIndex !== -1) {
     let resolvedRepstop = -1;
