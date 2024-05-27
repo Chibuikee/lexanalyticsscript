@@ -1,6 +1,6 @@
 const formatDate = require("./formatDate");
 const path = require("path");
-const targetTextAnalyzer = require("./targetTextAnalyzer");
+// const targetTextAnalyzer = require("./targetTextAnalyzer");
 const IdentifierIndexResolver = require("./indexResolver");
 const indexSortInAscending = require("./indexSorter");
 // create string for key, pair it with it's value
@@ -70,6 +70,7 @@ async function MetadataProcessor(docPath, text) {
       /COURT OF APPEAL/,
       /SUPREME COURT/,
       /PRIVY COUNCIL/,
+      /HOUSE OF LORDS/,
       /REPRESENTATION/,
     ];
 
@@ -78,10 +79,11 @@ async function MetadataProcessor(docPath, text) {
 
   // console.log(resolvedPIndex);
   const PtextFromIndex = text.slice(PstartIndex + 7, resolvedPIndex);
-  // console.log(PtextFromIndex);
+  // console.log(PtextFromIndex, PstartIndex, resolvedPIndex);
   const partiesRegex = /\b[A-Z][A-Z .-]+\b/g;
   const partiesMatch = PtextFromIndex.match(partiesRegex);
-  const ex = partiesMatch.map((item) => item.trim());
+  // console.log(PtextFromIndex);
+  const ex = partiesMatch?.map((item) => item.trim());
 
   if (PstartIndex == -1) {
     // this regex is used to match every name except V or V.
@@ -92,8 +94,8 @@ async function MetadataProcessor(docPath, text) {
     createKeyAndValue("parties_1", [partiesMatch[1]], metadata);
   } else {
     // names before and is used for appellant while names after respondent
-    const app = ex.slice(0, ex.indexOf("AND"));
-    const res = ex.slice(ex.indexOf("AND") + 1);
+    const app = ex?.slice(0, ex.indexOf("AND"));
+    const res = ex?.slice(ex.indexOf("AND") + 1);
     createKeyAndValue("parties_0", app, metadata);
     createKeyAndValue("parties_1", res, metadata);
   }
@@ -139,12 +141,12 @@ async function MetadataProcessor(docPath, text) {
   metadata.lex_citation = citationMatch ? citationMatch[0] : "";
 
   // other citation numbers
-  const otherCitstartIndex = text.indexOf("OTHER CITATIONS");
+  const otherCitstartIndex = text.search(/OTHER CITATIONS?/);
   const otherCitstopIndex = text.search(/BEFORE THEIR LORDSHIPS?/);
   let resolvedOtherCit = -1;
   const regexothercit = [/BEFORE HIS LORDSHIP/, /BEFORE/, /BETWEEN/];
   if (otherCitstopIndex == -1) {
-    resolvedOtherCit = IdentifierIndexResolver(regexothercit, text);
+    resolvedOtherCit = indexSortInAscending(regexothercit, text);
   }
   const otherCittextFromIndex = text.slice(
     otherCitstartIndex,
@@ -156,19 +158,29 @@ async function MetadataProcessor(docPath, text) {
   createKeyAndValue("other_citations", listOfCitations, metadata);
 
   // Extract AREAS OF LAW
-  const startIndex = text.search(/\bISSUE.+ OF ACTIONS?\b/);
   // ISSUES FROM THE CAUSE(S) OF ACTION
-  const stopIndex = text.indexOf("CASE SUMMARY");
-  const stopIndex2 = text.search(/MAI?N JUDGE?MENT/);
+
+  const areaRegexStart = [
+    /\bISSUE.+ OF ACTIONS?\b/,
+    /PRACTICE AND PROCEDURE ISSUES/,
+  ];
+  const arearesolvedIndex = indexSortInAscending(areaRegexStart, text);
+
+  const areaRegexStop = [/CASE SUMMARY/, /MAI?N JUDGE?MENT/];
+  const arearesolvedIndexStop = indexSortInAscending(areaRegexStop, text);
+
   // first check if case summary is available else use main judgment
-  const resolvedIndex = stopIndex == -1 ? stopIndex2 : stopIndex;
-  const textFromIndex = text.slice(startIndex + 35, resolvedIndex);
-  // console.log("respondents", resolvedIndex);
+  const textFromIndex = text.slice(
+    arearesolvedIndex + 29,
+    // arearesolvedIndex + 35,
+    arearesolvedIndexStop
+  );
+  // console.log("respondents", textFromIndex);
   const arearegex = /(?<=\n+)[A-Z ]+(?=.+(?:-|:))/g;
   const allMatches = textFromIndex.match(arearegex);
   // console.log(allMatches);
   // remove leading and trailing spaces
-  const cleanAreasofLaw = allMatches.map((item) => item.trim());
+  const cleanAreasofLaw = allMatches?.map((item) => item.trim());
   // create unique areas from all the areas found
   const UniqueAreasofLaw = [...new Set(cleanAreasofLaw)];
   for (let index = 0; index < UniqueAreasofLaw.length; index++) {
@@ -213,57 +225,68 @@ async function MetadataProcessor(docPath, text) {
     : [];
   createKeyAndValue("judge", allJudges, metadata);
 
-  // Extract legal representation
+  // Extract LEGAL REPRESENTATION
+
   const repstartIndex = text.indexOf("REPRESENTATION");
 
   const repstopIndex = text.search(/\bISSUE.+ OF ACTIONS?\b/);
 
-  if (repstartIndex !== -1) {
-    let resolvedRepstop = -1;
-    const regexresolvedRep = [/\bISSUE.+ OF ACTIONS\b/, /BEFORE/];
-    if (repstopIndex == -1) {
-      resolvedRepstop = IdentifierIndexResolver(regexresolvedRep, text);
-    }
-
-    const reptextFromIndex = text.slice(
-      repstartIndex + 14,
-      repstopIndex == -1 ? resolvedRepstop : repstopIndex
-    );
-    // separate the respondent from appellant using AND
-    const ArrayOfReps = reptextFromIndex.split("AND");
-    //   worked for ATTORNEY-GENERAL, OGUN STATE V. ALHAJI AYINKE ABERUAGBA
-    //  this captures lower case names
-    // (\b[A-Z]*(\w[ a-z.]+)+, (Esq|SAN)\b)
-    const reparearegex = /(\b[A-Z][A-Z.\s]+ [A-Z-.]+\b)/g;
-    // const reparearegex = /(?<=\s+)[A-Z \.]+(?:ESQ\.|Esq\.|S.A.N)/g;
-    //   const reparearegex = /\b[A-Z][A-Z .-]+\b/g;
-    const repApp = ArrayOfReps[0]?.match(reparearegex);
-    const repRes = ArrayOfReps[1]?.match(reparearegex);
-
-    if (repApp) {
-      createKeyAndValue("representation_appellant", repApp, metadata);
-    }
-    if (repRes) {
-      createKeyAndValue("representation_respondent", repRes, metadata);
-    }
+  // if (repstartIndex !== -1) {
+  let resolvedRepstop = -1;
+  const regexresolvedRep = [
+    /PRACTICE AND PROCEDURE ISSUES/,
+    /\bISSUE.+ OF ACTIONS?\b/,
+    /BEFORE/,
+  ];
+  if (repstopIndex == -1) {
+    resolvedRepstop = IdentifierIndexResolver(regexresolvedRep, text);
   }
+  // console.log(repstartIndex, repstopIndex, "las", resolvedRepstop);
+  const reptextFromIndex = text.slice(
+    repstartIndex + 14,
+    repstopIndex == -1 ? resolvedRepstop : repstopIndex
+  );
+  // console.log("text hi", reptextFromIndex);
+  // separate the respondent from appellant using AND
+  const ArrayOfReps = reptextFromIndex.split("AND");
+  //   worked for ATTORNEY-GENERAL, OGUN STATE V. ALHAJI AYINKE ABERUAGBA
+  //  this captures lower case names
+  // (\b[A-Z]*(\w[ a-z.]+)+, (Esq|SAN)\b)
+  const reparearegex = /(\b[A-Z][A-Z.\s]+ [A-Z-.]+\b)/g;
+  // const reparearegex = /(?<=\s+)[A-Z \.]+(?:ESQ\.|Esq\.|S.A.N)/g;
+  //   const reparearegex = /\b[A-Z][A-Z .-]+\b/g;
+  const repApp = ArrayOfReps[0]?.match(reparearegex);
+  const repRes = ArrayOfReps[1]?.match(reparearegex);
+
+  if (repApp) {
+    createKeyAndValue("representation_appellant", repApp, metadata);
+  }
+  if (repRes) {
+    createKeyAndValue("representation_respondent", repRes, metadata);
+  }
+  // }
   // ORIGINATING COURTS
-  const startOriginating = text.indexOf("ORIGINATING COURT(S)");
-  const stopOriginating = text.indexOf("REPRESENTATION");
-  const textFromOriginating = text.slice(startOriginating, stopOriginating);
+  const startOriginating = text.search(/ORIGINATING COURT(\(S\))?/);
+  const stopOriginating = text.search(/REPRESENTATION/);
+  const textFromOriginating = text.slice(
+    startOriginating + 21,
+    stopOriginating
+  );
   // const originatingregex = /([\w\s\S]*)/g;
 
   const originatingregex = /(?<=\d\.\t)(.+)/g;
-  // /(?<=\d\.\t)([\w\s\S]+)/g;
-  // /(?<=ORIGINATING COURT\(S\)\s*\n)(.*(?:\n(?!REPRESENTATION).*)*)/;
-  // /(.*(?:\n(?!REPRESENTATION).*)*)/;
-  const originatingallMatches = textFromOriginating.match(originatingregex);
+  const originatingregex2 = /(.+)/g;
 
+  let originatingallMatches =
+    textFromOriginating.match(originatingregex) ??
+    textFromOriginating.match(originatingregex2);
   // [0].trim().split(/\t/));
   const originatingCourts = originatingallMatches?.map((item) =>
     item.replace("-end!", "")
   );
-  createKeyAndValue("originating_court", originatingCourts, metadata);
+  if (startOriginating !== -1) {
+    createKeyAndValue("originating_court", originatingCourts, metadata);
+  }
 
   // console.log("Node", ori);
 
