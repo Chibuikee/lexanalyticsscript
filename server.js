@@ -13,7 +13,7 @@ function saveMetadataAsJson(metadata, outputDir) {
     const existingData = fs.readFileSync(outputFilename, "utf8");
     jsonData = JSON.parse(existingData);
   }
-  console.log(metadata);
+  // console.log(metadata);
   jsonData[metadata.doc_id] = metadata;
 
   fs.writeFileSync(outputFilename, JSON.stringify(jsonData, null, 4));
@@ -29,6 +29,7 @@ async function processDocuments(inputDir, outputDir) {
 
   const files = fs.readdirSync(inputDir);
   for (const file of files) {
+    // for (const file of files.slice(0, 3)) {
     // check whether the file name ends with .docx
     const docPath = path.join(inputDir, file);
     if (file.endsWith(".docx")) {
@@ -50,7 +51,7 @@ async function processDocuments(inputDir, outputDir) {
         saveMetadataAsJson(metaData, outputDir);
         console.log(`Metadata extracted and saved for: ${file}`);
       } catch (error) {
-        console.log(error);
+        console.error(`Error processing ${file}: ${error.message}`);
       }
     } else {
       console.log("File type NOT FOUND");
@@ -62,7 +63,7 @@ async function processDocuments(inputDir, outputDir) {
 // const inputDirectory = "path/cases2";
 // const inputDirectory = "path/casesG";
 // const inputDirectory = "path/cases";
-const inputDirectory = "path/case";
+const inputDirectory = "path/caseG_J";
 // const inputDirectory = "path/case1";
 const outputDirectory = "path/to";
 processDocuments(inputDirectory, outputDirectory);

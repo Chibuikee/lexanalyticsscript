@@ -50,8 +50,9 @@ async function MetadataProcessor(docPath, text) {
   const regexes = [
     // /(?:BETWEEN)(?::)?/,
     /ORIGINATING COURT/,
+    /ORIGINATING/,
     /REPRESENTATION/,
-    /\bISSUE.+ OF ACTION\b/g,
+    /\bISSUE.+ OF ACTION\b/,
   ];
 
   let resolvedPIndex = -1;
@@ -67,7 +68,13 @@ async function MetadataProcessor(docPath, text) {
     }
   } else {
     // console.log("ran");
-    const indexes = [/IN THE /, /COURT OF APPEAL/, /SUPREME COURT/];
+    const indexes = [
+      /IN THE /,
+      /COURT OF APPEAL/,
+      /SUPREME COURT/,
+      /PRIVY COUNCIL/,
+      // /REPRESENTATION/,
+    ];
 
     resolvedPIndex = IdentifierIndexResolver(indexes, text);
   }
@@ -81,7 +88,7 @@ async function MetadataProcessor(docPath, text) {
 
   if (PstartIndex == -1) {
     // this regex is used to match every name except V or V.
-    const regex = /.{3,}/g;
+    const regex = /\b[A-Z]+.{3,}[A-Z]\b/g;
     const partiesMatch = PtextFromIndex.match(regex);
     // console.log("names found", partiesMatch);
     createKeyAndValue("parties_0", [partiesMatch[0]], metadata);
@@ -104,21 +111,30 @@ async function MetadataProcessor(docPath, text) {
 
   // Extract DATE and YEAR
   const datesRegex =
-    /(ON\s*)?(?:MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY|SATURDAY|SUNDAY)?,?(\s*THE\s*)?(?:\d{1,2}(?:TH|ST|ND|RD) DAY OF)?\s*(?:JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER),?\s*\d{4}/i;
+    /\b\d+(TH|ST|ND|RD)?.+(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER).+\d{4}\b/;
+  // /(ON\s*)?(?:MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY|SATURDAY|SUNDAY)?,?(\s*THE\s*)?(?:\d{1,2}(?:TH|ST|ND|RD) DAY OF)?\s*(?:JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER),?\s*\d{4}/i;
   const datesMatches = text.match(datesRegex);
-  // /[d]+(?:JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER)\s*\d{4}/
+
   const dateString = datesMatches ? datesMatches[0].replace("ON ", "") : "";
   const completeDate = formatDate(dateString);
-  metadata.date = completeDate;
-  metadata.year = completeDate ? parseInt(completeDate?.split("-")[2]) : "";
+  const year = text.match(/\d{4}/)[0];
 
-  const suitNumberRegex = /(CA|SC)[.\/\w\s-]+\d{4}/;
+  metadata.date = completeDate;
+  // metadata.year = completeDate ? parseInt(completeDate?.split("-")[2]) : year;
+  metadata.year = year;
+  // (\(\d+\)) this captures suit number that start with (number inside)
+  const suitNumberRegex = /(CA|SC|S.C|(\(\d+\)))[.\/\w\s-]+\d\b/;
 
   // Match the suit number using the regular expression
-  const suitNumberMatch = suitNumberRegex.exec(text);
+  const suitNumberMatch = suitNumberRegex.exec(
+    // text.slice(0, text.search(/(LEX|OTHER)/))
+    text
+  );
 
   // Extract the suit number from the match
-  metadata.suit_number = suitNumberMatch ? suitNumberMatch[0] : "";
+  metadata.suit_number = suitNumberMatch
+    ? suitNumberMatch[0].split(/\n/)[0]
+    : "";
 
   // Extract Citation
   const citationRegex = /LEX\s.*\d+\b/;
@@ -127,10 +143,15 @@ async function MetadataProcessor(docPath, text) {
 
   // other citation numbers
   const otherCitstartIndex = text.indexOf("OTHER CITATIONS");
-  const otherCitstopIndex = text.indexOf("BEFORE THEIR LORDSHIPS");
+  const otherCitstopIndex = text.search(/BEFORE THEIR LORDSHIPS?/);
+  let resolvedOtherCit = -1;
+  const regexothercit = [/BEFORE HIS LORDSHIP/, /BEFORE/, /BETWEEN/];
+  if (otherCitstopIndex == -1) {
+    resolvedOtherCit = IdentifierIndexResolver(regexothercit, text);
+  }
   const otherCittextFromIndex = text.slice(
     otherCitstartIndex,
-    otherCitstopIndex
+    otherCitstopIndex == -1 ? resolvedOtherCit : otherCitstopIndex
   );
   const citeRegex = /(?<=\n+)(.+)/g;
   const listOfCitations = otherCittextFromIndex.match(citeRegex);
@@ -138,7 +159,7 @@ async function MetadataProcessor(docPath, text) {
   createKeyAndValue("other_citations", listOfCitations, metadata);
 
   // Extract AREAS OF LAW
-  const startIndex = text.search(/\bISSUE.+ OF ACTION\b/g);
+  const startIndex = text.search(/\bISSUE.+ OF ACTIONS?\b/g);
   // ISSUES FROM THE CAUSE(S) OF ACTION
   const stopIndex = text.indexOf("CASE SUMMARY");
   const stopIndex2 = text.search(/MAI?N JUDGE?MENT/);
@@ -180,7 +201,7 @@ async function MetadataProcessor(docPath, text) {
   ];
   // console.log("HIII", JstartIndex);
   const cutText = targetTextAnalyzer(
-    alphaCondition,
+    // alphaCondition,
     Jregexes,
     text,
     text.search(alphaCondition)
@@ -195,9 +216,20 @@ async function MetadataProcessor(docPath, text) {
 
   // Extract legal representation
   const repstartIndex = text.indexOf("REPRESENTATION");
+
+  const repstopIndex = text.search(/\bISSUE.+ OF ACTIONS?\b/g);
+
   if (repstartIndex !== -1) {
-    const repstopIndex = text.search(/\bISSUE.+ OF ACTION\b/g);
-    const reptextFromIndex = text.slice(repstartIndex + 14, repstopIndex);
+    let resolvedRepstop = -1;
+    const regexresolvedRep = [/\bISSUE.+ OF ACTIONS\b/, /BEFORE/];
+    if (repstopIndex == -1) {
+      resolvedRepstop = IdentifierIndexResolver(regexresolvedRep, text);
+    }
+
+    const reptextFromIndex = text.slice(
+      repstartIndex + 14,
+      repstopIndex == -1 ? resolvedRepstop : repstopIndex
+    );
     // separate the respondent from appellant using AND
     const ArrayOfReps = reptextFromIndex.split("AND");
     //   worked for ATTORNEY-GENERAL, OGUN STATE V. ALHAJI AYINKE ABERUAGBA

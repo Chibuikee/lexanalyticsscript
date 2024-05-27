@@ -45,7 +45,7 @@ async function quickFix(inputDir, outputDir, jsonPath) {
     const files = await fs.readdir(path.join("../path", inputDir));
 
     const jsonData = JSON.parse(await fs.readFile(jsonPath, "utf8"));
-    console.log("data extracted", jsonData);
+    // console.log("data extracted", jsonData);
     for (const file of files) {
       const docPath = path.join("../path", inputDir, file);
       if (file.endsWith(".docx")) {
