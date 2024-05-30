@@ -3,6 +3,9 @@ const path = require("path");
 // const targetTextAnalyzer = require("./targetTextAnalyzer");
 const IdentifierIndexResolver = require("./indexResolver");
 const indexSortInAscending = require("./indexSorter");
+const NewindexSortInAscending = require("./newindexSortInAscending");
+const logSaver = require("./logSaver");
+const textLengthChecker = require("./textLength");
 // create string for key, pair it with it's value
 function createKeyAndValue(key, dataArray, metadata) {
   if (dataArray !== null) {
@@ -209,15 +212,17 @@ async function MetadataProcessor(docPath, text) {
     /\bISSUE.+ OF ACTION\b/,
   ];
   // console.log("HIII", JstartIndex);
-  const JresolvedIndex = indexSortInAscending(Jregexes, text);
-  const cutText = text.slice(JstartIndex + 24, JresolvedIndex);
+  const JresolvedIndex = NewindexSortInAscending(Jregexes, text, JstartIndex);
+  const cutText = text.slice(
+    // textLengthChecker: In order to get the exact length of the word and add it to the starting regex index
+    // this ensures that the slicing starts from the write number after the identifying word
+    JstartIndex + textLengthChecker(text.match(JresolvedIndex.regexPicked)) ??
+      24,
+    JresolvedIndex.pickedIndex
+  );
+  // logSaver("testingnow", cutText);
+  // console.log("testingnow", cutText);
 
-  // const cutText = targetTextAnalyzer(
-  //   Jregexes,
-  //   text,
-  //   text.search(alphaCondition)
-  // );
-  // console.log("text cut", cutText);
   const judgesRegex = /(\b[A-Z].+(SC|CA|S.C|C.A|N|J)\b)/g;
   const matches = cutText.match(judgesRegex);
   const allJudges = matches
@@ -227,7 +232,7 @@ async function MetadataProcessor(docPath, text) {
 
   // Extract LEGAL REPRESENTATION
 
-  const repstartIndex = text.indexOf("REPRESENTATION");
+  const repstartIndex = text.search(/REPRESENTATIONS?/);
 
   const repstopIndex = text.search(/\bISSUE.+ OF ACTIONS?\b/);
 
@@ -237,41 +242,54 @@ async function MetadataProcessor(docPath, text) {
     /PRACTICE AND PROCEDURE ISSUES/,
     /\bISSUE.+ OF ACTIONS?\b/,
     /BEFORE/,
+    /MAI?N JUDGE?MENT/,
   ];
   if (repstopIndex == -1) {
-    resolvedRepstop = IdentifierIndexResolver(regexresolvedRep, text);
+    resolvedRepstop = NewindexSortInAscending(
+      regexresolvedRep,
+      text,
+      repstartIndex
+    )?.pickedIndex;
   }
-  // console.log(repstartIndex, repstopIndex, "las", resolvedRepstop);
   const reptextFromIndex = text.slice(
-    repstartIndex + 14,
+    repstartIndex + textLengthChecker(text.match(/REPRESENTATIONS?/)) ?? 14,
     repstopIndex == -1 ? resolvedRepstop : repstopIndex
   );
-  // console.log("text hi", reptextFromIndex);
+  // console.log(reptextFromIndex);
+
   // separate the respondent from appellant using AND
   const ArrayOfReps = reptextFromIndex.split("AND");
   //   worked for ATTORNEY-GENERAL, OGUN STATE V. ALHAJI AYINKE ABERUAGBA
   //  this captures lower case names
   // (\b[A-Z]*(\w[ a-z.]+)+, (Esq|SAN)\b)
+  // \b[A-Z][A-Z.\s-]*\b this regex is thesame with /(\b[A-Z][A-Z.\s]+ [A-Z-.]+\b)/g
+  // difference, the former matches one name or more, later matches more than one name
+  // reason for using the later, to remove one later names
+  // Single names are not matched for now sadly
   const reparearegex = /(\b[A-Z][A-Z.\s]+ [A-Z-.]+\b)/g;
   // const reparearegex = /(?<=\s+)[A-Z \.]+(?:ESQ\.|Esq\.|S.A.N)/g;
   //   const reparearegex = /\b[A-Z][A-Z .-]+\b/g;
   const repApp = ArrayOfReps[0]?.match(reparearegex);
   const repRes = ArrayOfReps[1]?.match(reparearegex);
 
-  if (repApp) {
+  if (repApp && repstartIndex !== -1) {
     createKeyAndValue("representation_appellant", repApp, metadata);
   }
-  if (repRes) {
+  if (repRes && repstartIndex !== -1) {
     createKeyAndValue("representation_respondent", repRes, metadata);
   }
   // }
   // ORIGINATING COURTS
   const startOriginating = text.search(/ORIGINATING COURT(\(S\))?/);
-  const stopOriginating = text.search(/REPRESENTATION/);
+  const regexOriginating = [/REPRESENTATION/, /\bISSUE.+ OF ACTIONS?\b/];
+  const ResolvedStopOriginating = indexSortInAscending(regexOriginating, text);
+  // ORIGINATING COURT
   const textFromOriginating = text.slice(
-    startOriginating + 21,
-    stopOriginating
+    startOriginating +
+      textLengthChecker(text.match(/ORIGINATING COURT(\(S\))?/)) ?? 19,
+    ResolvedStopOriginating
   );
+  // console.log(textFromOriginating);
   // const originatingregex = /([\w\s\S]*)/g;
 
   const originatingregex = /(?<=\d\.\t)(.+)/g;

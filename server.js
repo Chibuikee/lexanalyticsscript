@@ -32,40 +32,40 @@ async function processDocuments(inputDir, outputDir) {
     // for (const file of files.slice(0, 3)) {
     // check whether the file name ends with .docx
     const docPath = path.join(inputDir, file);
-    if (file === "KOGBE  V.IKUPOLOWO.docx") {
-      if (file.endsWith(".docx")) {
-        try {
-          const fileText = await docxFilesExtractor(docPath);
-          const metaData = await MetadataProcessor(docPath, fileText);
-          saveMetadataAsJson(metaData, outputDir);
-          console.log(`Metadata extracted and saved for: ${file}`);
-        } catch (err) {
-          // console.log(err);
-          console.error(`Error processing ${file}: ${err.message}`);
-        }
-      } else if (file.endsWith(".doc")) {
-        try {
-          const fileText = await docFilesExtractor(docPath, file);
-          // check if the text is extracted properly
-          // logSaver(file, fileText);
-          const metaData = await MetadataProcessor(docPath, fileText);
-          saveMetadataAsJson(metaData, outputDir);
-          console.log(`Metadata extracted and saved for: ${file}`);
-        } catch (error) {
-          console.error(`Error processing ${file}: ${error.message}`);
-        }
-      } else {
-        console.log("File type NOT FOUND");
+    // if (file === "LABOUR PARTY V. BELLO.docx") {
+    if (file.endsWith(".docx")) {
+      try {
+        const fileText = await docxFilesExtractor(docPath);
+        const metaData = await MetadataProcessor(docPath, fileText);
+        saveMetadataAsJson(metaData, outputDir);
+        console.log(`Metadata extracted and saved for: ${file}`);
+      } catch (err) {
+        // console.log(err);
+        console.error(`Error processing ${file}: ${err.message}`);
       }
+    } else if (file.endsWith(".doc")) {
+      try {
+        const fileText = await docFilesExtractor(docPath, file);
+        // check if the text is extracted properly
+        // logSaver(file, fileText);
+        const metaData = await MetadataProcessor(docPath, fileText);
+        saveMetadataAsJson(metaData, outputDir);
+        console.log(`Metadata extracted and saved for: ${file}`);
+      } catch (error) {
+        console.error(`Error processing ${file}: ${error.message}`);
+      }
+    } else {
+      console.log("File type NOT FOUND");
     }
+    // }
   }
 }
 
 // input and output path
 // const inputDirectory = "path/cases2";
-// const inputDirectory = "path/casesG";
+const inputDirectory = "path/casesG";
 // const inputDirectory = "path/cases";
-const inputDirectory = "path/caseK_N";
+// const inputDirectory = "path/caseK_N";
 // const inputDirectory = "path/case1";
 const outputDirectory = "path/to";
 processDocuments(inputDirectory, outputDirectory);
