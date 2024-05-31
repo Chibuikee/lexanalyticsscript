@@ -1,13 +1,53 @@
 // Function to format the date string
-function formatDate(inputDate) {
+const NewindexSortInAscending = require("./newindexSortInAscending");
+const textLengthChecker = require("./textLength");
+
+const courts = [
+  /SUPREME COURT/,
+  /FEDERAL SUPREME COURT/,
+  /COURT OF APPEAL/,
+  /FEDERAL HIGH COURT/,
+  /HIGH COURT/,
+  /QUEEN'S BENCH/,
+  /QUEEN'S BENCH DIVISION/,
+  /APPEAL COURT DIVISION/,
+  /KING'S BENCH DIVISION/,
+  /KINGS COUNCIL/,
+  /APPEAL COURT/,
+  // /HOUSE OF LORDS/,
+  // used because of potential spelling errors
+  /HOUSE OF L\w+DS?/,
+  /DIVISIONAL COURT/,
+  /PRIVY COUNCIL/,
+  /WACA/,
+  /CHANCERY/,
+];
+
+function formatDate(inputDate, text) {
   // Regular expression to extract day, month, and year
   const regex = /(\d+)(?:TH|ST|ND|RD)?.+(\w+).+(\d{4})/i;
   // const regex = /(\d+)(?:TH|ST|ND|RD) DAY OF (\w+), (\d{4})/i;
   const match = inputDate.match(regex);
-
+  // 31/5/2024 updated the code to get just the text
+  // between the boundaries set and pickt he date from it
   if (!match) {
-    return "Invalid date format";
+    const startIndex = NewindexSortInAscending(courts, text);
+
+    const endIndex = text.search(/LEX\s.*\d+\b/);
+
+    const extracteddate = text.slice(
+      startIndex.pickedIndex +
+        textLengthChecker(text.match(startIndex.regexPicked)) ?? 4,
+      endIndex
+    );
+    if (extracteddate) {
+      inputDate = extracteddate;
+    } else {
+      return "Invalid date format";
+    }
+    // console.log("date extracted", extracteddate);
   }
+
   const day = inputDate.match(/\b\d{1,2}(?=TH|ST|ND|RD)?/);
 
   const monthName = inputDate.match(

@@ -6,6 +6,8 @@ const indexSortInAscending = require("./indexSorter");
 const NewindexSortInAscending = require("./newindexSortInAscending");
 const logSaver = require("./logSaver");
 const textLengthChecker = require("./textLength");
+const RegexVariable = require("./usefulVariables/regex");
+// const { deprecate } = require("util");
 // create string for key, pair it with it's value
 function createKeyAndValue(key, dataArray, metadata) {
   if (dataArray !== null) {
@@ -27,6 +29,7 @@ async function MetadataProcessor(docPath, text) {
     "FEDERAL HIGH COURT",
     "HIGH COURT",
     "QUEEN'S BENCH",
+    "QUEEN'S BENCH DIVISION",
     "APPEAL COURT DIVISION",
     "KING'S BENCH DIVISION",
     "KINGS COUNCIL",
@@ -74,6 +77,7 @@ async function MetadataProcessor(docPath, text) {
       /SUPREME COURT/,
       /PRIVY COUNCIL/,
       /HOUSE OF LORDS/,
+      /HOUSE OF L\w+DS?/,
       /REPRESENTATION/,
     ];
 
@@ -109,7 +113,29 @@ async function MetadataProcessor(docPath, text) {
 
   // Extract COURT
 
-  metadata.court = courts.find((court) => text.includes(court)) || "";
+  const courtsIndexes = [/LEX\s.*\d+\b/, /(OTHER )?CITATIONS?/];
+  const CourtEndIndex = NewindexSortInAscending(courtsIndexes, text);
+
+  const extractedCourt = text.slice(0, CourtEndIndex.pickedIndex);
+  // console.log(extractedCourt);
+  // RegexVariable.courtsTypes.
+  let PickedCourt = [];
+  for (const regex of RegexVariable.courtsTypes) {
+    const court = extractedCourt.match(regex);
+    // If the regex matches, add the index to the array
+    if (court !== null) {
+      PickedCourt = court;
+
+      break;
+      // regexArray.push({ [index]: regex });
+    }
+  }
+  // console.log("matched", );
+  metadata.court =
+    PickedCourt[0] ?? (courts.find((court) => text.test(court)) || "");
+  // deprecated infavour of the above code because the code
+  // returns a court from any part of the text
+  // metadata.court = courts.find((court) => text.test(court)) || "";
 
   // Extract DATE and YEAR
   const datesRegex =
@@ -118,7 +144,7 @@ async function MetadataProcessor(docPath, text) {
   const datesMatches = text.match(datesRegex);
 
   const dateString = datesMatches ? datesMatches[0].replace("ON ", "") : "";
-  const completeDate = formatDate(dateString);
+  const completeDate = formatDate(dateString, text);
   const year = text.match(/\d{4}/)[0];
 
   metadata.date = completeDate;
@@ -144,17 +170,33 @@ async function MetadataProcessor(docPath, text) {
   metadata.lex_citation = citationMatch ? citationMatch[0] : "";
 
   // other citation numbers
-  const otherCitstartIndex = text.search(/OTHER CITATIONS?/);
+  const otherCitstartIndex = text.search(/(OTHER )?CITATIONS?/);
   const otherCitstopIndex = text.search(/BEFORE THEIR LORDSHIPS?/);
   let resolvedOtherCit = -1;
-  const regexothercit = [/BEFORE HIS LORDSHIP/, /BEFORE/, /BETWEEN/];
+  const regexothercit = [
+    /BEFORE HIS LORDSHIP/,
+    /BEFORE/,
+    /BETWEEN/,
+    /ORIGINATING COURT(\(S\))?/,
+    // ...RegexVariable.courtsTypes,
+  ];
   if (otherCitstopIndex == -1) {
-    resolvedOtherCit = indexSortInAscending(regexothercit, text);
+    resolvedOtherCit = NewindexSortInAscending(
+      regexothercit,
+      text,
+      otherCitstartIndex
+    );
   }
   const otherCittextFromIndex = text.slice(
     otherCitstartIndex,
-    otherCitstopIndex == -1 ? resolvedOtherCit : otherCitstopIndex
+    otherCitstopIndex == -1 ? resolvedOtherCit?.pickedIndex : otherCitstopIndex
   );
+  // console.log(
+  //   "citation",
+  //   otherCitstartIndex,
+  //   otherCitstopIndex,
+  //   resolvedOtherCit
+  // );
   const citeRegex = /(?<=\n+)(.+)/g;
   const listOfCitations = otherCittextFromIndex.match(citeRegex);
   // console.log("nodeeee", listOfCitations);
@@ -202,7 +244,7 @@ async function MetadataProcessor(docPath, text) {
   // JUDGES EXTRACTIONS
   const JstartRegex = [/\bBEFORE.*(LORDSHIPS?:?|JUDGES?:?)\b/, /\bBEFORE:/];
 
-  const JstartIndex = indexSortInAscending(JstartRegex, text);
+  const JstartIndex = NewindexSortInAscending(JstartRegex, text);
   // text.search(JstartRegex) == -1 ? JstartRegex1 : JstartRegex;
   // determines last index to slice text
   const Jregexes = [
@@ -216,8 +258,8 @@ async function MetadataProcessor(docPath, text) {
   const cutText = text.slice(
     // textLengthChecker: In order to get the exact length of the word and add it to the starting regex index
     // this ensures that the slicing starts from the write number after the identifying word
-    JstartIndex + textLengthChecker(text.match(JresolvedIndex.regexPicked)) ??
-      24,
+    JstartIndex.pickedIndex +
+      textLengthChecker(text.match(JstartIndex.regexPicked)) ?? 24,
     JresolvedIndex.pickedIndex
   );
   // logSaver("testingnow", cutText);
