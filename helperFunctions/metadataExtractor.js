@@ -59,7 +59,9 @@ async function MetadataProcessor(docPath, text) {
     /ORIGINATING COURT/,
     /ORIGINATING/,
     /REPRESENTATION/,
+    /REPRESENTATIVE/,
     /\bISSUE.+ OF ACTION\b/,
+    /Solicitor/,
   ];
 
   let resolvedPIndex = -1;
@@ -250,11 +252,15 @@ async function MetadataProcessor(docPath, text) {
   const Jregexes = [
     /BETWEEN/,
     /REPRESENTATION/,
-    // /ORIGINATING COURT/,
+    /ORIGINATING COURT/,
     /\bISSUE.+ OF ACTION\b/,
   ];
   // console.log("HIII", JstartIndex);
-  const JresolvedIndex = NewindexSortInAscending(Jregexes, text, JstartIndex);
+  const JresolvedIndex = NewindexSortInAscending(
+    Jregexes,
+    text,
+    JstartIndex.pickedIndex
+  );
   const cutText = text.slice(
     // textLengthChecker: In order to get the exact length of the word and add it to the starting regex index
     // this ensures that the slicing starts from the write number after the identifying word
@@ -265,7 +271,10 @@ async function MetadataProcessor(docPath, text) {
   // logSaver("testingnow", cutText);
   // console.log("testingnow", cutText);
 
-  const judgesRegex = /(\b[A-Z].+(SC|CA|S.C|C.A|N|J)\b)/g;
+  const judgesRegex =
+    /(\b[A-Z].+(SC|CA|S.C|C.A|N|J|LC)\b|\b(LORD|[A-Z]+).+[A-Z]{4,}\b)/g;
+  //  use but does not match names with jca jsc ca exitCode.
+  // const judgesRegex = /(\b[A-Z].+(SC|CA|S.C|C.A|N|J)\b)/g;
   const matches = cutText.match(judgesRegex);
   const allJudges = matches
     ? matches.map((item) => item.trim().split(/\n+/)).flat()
@@ -273,34 +282,39 @@ async function MetadataProcessor(docPath, text) {
   createKeyAndValue("judge", allJudges, metadata);
 
   // Extract LEGAL REPRESENTATION
-
-  const repstartIndex = text.search(/REPRESENTATIONS?/);
-
-  const repstopIndex = text.search(/\bISSUE.+ OF ACTIONS?\b/);
+  const startRegexRep = [/REPRESENTATIONS?/, /REPRESENTATIVE/, /Solicitor/];
+  // const repstartIndex = text.search(startRegexRep);
+  const resolvedRepstart = NewindexSortInAscending(startRegexRep, text);
+  // const repstopIndex = text.search(/\bISSUE.+ OF ACTIONS?\b/);
 
   // if (repstartIndex !== -1) {
-  let resolvedRepstop = -1;
-  const regexresolvedRep = [
+  const regexreStopRep = [
     /PRACTICE AND PROCEDURE ISSUES/,
     /\bISSUE.+ OF ACTIONS?\b/,
     /BEFORE/,
     /MAI?N JUDGE?MENT/,
+    /MAIN ISSUES?/,
+    /ORIGINATING COURT/,
   ];
-  if (repstopIndex == -1) {
-    resolvedRepstop = NewindexSortInAscending(
-      regexresolvedRep,
-      text,
-      repstartIndex
-    )?.pickedIndex;
-  }
-  const reptextFromIndex = text.slice(
-    repstartIndex + textLengthChecker(text.match(/REPRESENTATIONS?/)) ?? 14,
-    repstopIndex == -1 ? resolvedRepstop : repstopIndex
+  let resolvedRepstop = -1;
+  // if (repstopIndex == -1) {
+  resolvedRepstop = NewindexSortInAscending(
+    regexreStopRep,
+    text,
+    resolvedRepstart.pickedIndex
   );
-  // console.log(reptextFromIndex);
+  // }
+  const reptextFromIndex = text.slice(
+    resolvedRepstart.pickedIndex +
+      textLengthChecker(text.match(resolvedRepstart.regexPicked)) ?? 14,
+    resolvedRepstop?.pickedIndex
+    // repstopIndex == -1 ? resolvedRepstop : repstopIndex
+  );
 
   // separate the respondent from appellant using AND
   const ArrayOfReps = reptextFromIndex.split("AND");
+  // .filter((item) => item !== "\n");
+  // console.log(ArrayOfReps[1]);
   //   worked for ATTORNEY-GENERAL, OGUN STATE V. ALHAJI AYINKE ABERUAGBA
   //  this captures lower case names
   // (\b[A-Z]*(\w[ a-z.]+)+, (Esq|SAN)\b)
@@ -308,17 +322,25 @@ async function MetadataProcessor(docPath, text) {
   // difference, the former matches one name or more, later matches more than one name
   // reason for using the later, to remove one later names
   // Single names are not matched for now sadly
-  const reparearegex = /(\b[A-Z][A-Z.\s]+ [A-Z-.]+\b)/g;
-  // const reparearegex = /(?<=\s+)[A-Z \.]+(?:ESQ\.|Esq\.|S.A.N)/g;
+  // const reparearegex = /(\b[A-Z][A-Z.\s]+ [A-Z-.]+\b)/g;
+  // This is an improvement to the above, it matches single names
+  const reparearegex =
+    /(\b[A-Z][A-Z.\s]+ [A-Z-.]+\b)|\b[A-Z\s]*&[\sA-Z]+|\b[A-Z]{4,}/g;
   //   const reparearegex = /\b[A-Z][A-Z .-]+\b/g;
-  const repApp = ArrayOfReps[0]?.match(reparearegex);
+  const repApp = ArrayOfReps[0]
+    ?.match(reparearegex)
+    // some cases have /lawyers with the representation hence the clean up
+    ?.map((item) => item.replace(/LAWYERS?/g, "").trim());
+  // console.log(repApp);
+  // let newStr = str;
+  // (match) => match.trim()
   const repRes = ArrayOfReps[1]?.match(reparearegex);
 
-  if (repApp && repstartIndex !== -1) {
+  if (repApp && repRes && resolvedRepstart.pickedIndex !== -1) {
     createKeyAndValue("representation_appellant", repApp, metadata);
-  }
-  if (repRes && repstartIndex !== -1) {
     createKeyAndValue("representation_respondent", repRes, metadata);
+  } else if (repApp && !repRes && resolvedRepstart.pickedIndex !== -1) {
+    createKeyAndValue("representation", repApp, metadata);
   }
   // }
   // ORIGINATING COURTS

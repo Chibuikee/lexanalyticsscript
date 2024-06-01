@@ -1,11 +1,15 @@
 // NewindexSortInAscending checks all the regex indexes
-// and sorts them in ascending order, returning the first index greater than firstIndex or the smallest index if firstIndex is not surpassed.
+// and sorts them in ascending order, returning the
+// first index greater than firstIndex or the
+// smallest index if firstIndex is not surpassed.
 
-// this is an improvement from indexSorter, which merely sorts in
+// this is an improvement from indexSorter, which
+//  merely sorts in
 //  ascending order and returns the smallest number
 // edge cases where the index of the first
-// parameter of slice method is higher than the
-// index of the second parameter of slice method, this function solves it
+// argument of slice method is higher than the
+// index of the second argument of slice method,
+//  this function solves it
 function NewindexSortInAscending(regexes, text, firstIndex) {
   // Array to hold all matching indexes
   let indexesArray = [];
