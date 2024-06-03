@@ -42,6 +42,8 @@ async function MetadataProcessor(docPath, text) {
   ];
   // Extract CASE TITLE
   metadata.case_title = path.basename(docPath, path.extname(docPath));
+
+  // PARTIES EXTRACTION
   const PstartIndex = text.search(/(?:BETWEEN)(?::)?/);
   // const PstopIndex = text.search(/ORIGINATING COURT/);
   // const PstopIndex2 = text.search(/REPRESENTATION/);
@@ -56,6 +58,7 @@ async function MetadataProcessor(docPath, text) {
 
   const regexes = [
     // /(?:BETWEEN)(?::)?/,
+    /BEFORE THEIR LORDSHIP/,
     /ORIGINATING COURT/,
     /ORIGINATING/,
     /REPRESENTATION/,
@@ -68,7 +71,7 @@ async function MetadataProcessor(docPath, text) {
   // BETWEEN must be present before this code
   //  runs else just use IN THE to determine the stop index
   if (text.search(/(?:BETWEEN)(?::)?/) !== -1) {
-    resolvedPIndex = indexSortInAscending(regexes, text);
+    resolvedPIndex = NewindexSortInAscending(regexes, text, PstartIndex);
   } else {
     // console.log("ran");
     // these indexes are used only when the starting regex is not found
@@ -83,11 +86,14 @@ async function MetadataProcessor(docPath, text) {
       /REPRESENTATION/,
     ];
 
-    resolvedPIndex = indexSortInAscending(indexes, text);
+    resolvedPIndex = NewindexSortInAscending(regexes, text, PstartIndex);
   }
 
   // console.log(resolvedPIndex);
-  const PtextFromIndex = text.slice(PstartIndex + 7, resolvedPIndex);
+  const PtextFromIndex = text.slice(
+    PstartIndex + 7,
+    resolvedPIndex.pickedIndex
+  );
   // console.log(PtextFromIndex, PstartIndex, resolvedPIndex);
   const partiesRegex = /\b[A-Z][A-Z .-]+\b/g;
   const partiesMatch = PtextFromIndex.match(partiesRegex);
@@ -173,31 +179,35 @@ async function MetadataProcessor(docPath, text) {
 
   // other citation numbers
   const otherCitstartIndex = text.search(/(OTHER )?CITATIONS?/);
-  const otherCitstopIndex = text.search(/BEFORE THEIR LORDSHIPS?/);
-  let resolvedOtherCit = -1;
-  const regexothercit = [
+  // const otherCitstopIndex = text.search(/BEFORE THEIR LORDSHIPS?/);
+  let resolvedOtherCitStop = -1;
+  const regexothercitStop = [
+    /BEFORE THEIR LORDSHIPS?/,
     /BEFORE HIS LORDSHIP/,
     /BEFORE/,
     /BETWEEN/,
     /ORIGINATING COURT(\(S\))?/,
     // ...RegexVariable.courtsTypes,
   ];
-  if (otherCitstopIndex == -1) {
-    resolvedOtherCit = NewindexSortInAscending(
-      regexothercit,
-      text,
-      otherCitstartIndex
-    );
-  }
+  // if (otherCitstopIndex == -1) {
+  resolvedOtherCitStop = NewindexSortInAscending(
+    regexothercitStop,
+    text,
+    otherCitstartIndex
+  );
+  // }
   const otherCittextFromIndex = text.slice(
     otherCitstartIndex,
-    otherCitstopIndex == -1 ? resolvedOtherCit?.pickedIndex : otherCitstopIndex
+    // otherCitstopIndex == -1?
+
+    resolvedOtherCitStop?.pickedIndex
+    // : otherCitstopIndex
   );
   // console.log(
   //   "citation",
   //   otherCitstartIndex,
   //   otherCitstopIndex,
-  //   resolvedOtherCit
+  //   resolvedOtherCitStop
   // );
   const citeRegex = /(?<=\n+)(.+)/g;
   const listOfCitations = otherCittextFromIndex.match(citeRegex);
@@ -303,7 +313,7 @@ async function MetadataProcessor(docPath, text) {
     text,
     resolvedRepstart.pickedIndex
   );
-  console.log(resolvedRepstart, "stop", resolvedRepstop);
+
   // }
   let reptextFromIndex = "Representation Not Found";
   if (resolvedRepstop?.pickedIndex !== -1) {
@@ -341,7 +351,14 @@ async function MetadataProcessor(docPath, text) {
     /\b[A-Z\s]*&[\sA-Z]+\b|\b([A-Z]\.\s?){0,4}([A-Z][a-z\s-]+)*([A-Z][a-z]+)(, (Esq|SAN|S.A.N))?\b|(\b[A-Z][A-Z.\s]+ [A-Z-.]+\b)|\b[A-Z]{4,}/g;
   // const reparearegex = /\b[A-Z][A-Z .-]+\b/g;
   // words that where mistakenly matched but not wanted
-  const ArrayOfwordsToRemove = ["Esq", "Counsel", "No Legal Representation"];
+  const ArrayOfwordsToRemove = [
+    "Esq",
+    "Counsel",
+    "No Legal Representation",
+    "Plaintiff",
+    "Defendants",
+    "Defendant",
+  ];
   // convert the words to lower case
   const wordsToRemoveInLowerCase = ArrayOfwordsToRemove.map((item) =>
     item.toLowerCase()
