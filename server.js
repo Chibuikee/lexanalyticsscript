@@ -32,32 +32,32 @@ async function processDocuments(inputDir, outputDir) {
     // for (const file of files.slice(0, 3)) {
     // check whether the file name ends with .docx
     const docPath = path.join(inputDir, file);
-    // if (file === "YAMIKE KWEKU v. ANNOR ADJAYE.docx") {
-    if (file.endsWith(".docx")) {
-      try {
-        const fileText = await docxFilesExtractor(docPath);
-        const metaData = await MetadataProcessor(docPath, fileText);
-        saveMetadataAsJson(metaData, outputDir);
-        console.log(`Metadata extracted and saved for: ${file}`);
-      } catch (err) {
-        // console.log(err);
-        console.error(`Error processing ${file}: ${err.message}`);
+    if (file === "A.G OF CROSS RIVER STATE V A.G OF THE FEDERATION.doc") {
+      if (file.endsWith(".docx")) {
+        try {
+          const fileText = await docxFilesExtractor(docPath);
+          const metaData = await MetadataProcessor(docPath, fileText);
+          saveMetadataAsJson(metaData, outputDir);
+          console.log(`Metadata extracted and saved for: ${file}`);
+        } catch (err) {
+          // console.log(err);
+          console.error(`Error processing ${file}: ${err.message}`);
+        }
+      } else if (file.endsWith(".doc")) {
+        try {
+          const fileText = await docFilesExtractor(docPath, file);
+          // check if the text is extracted properly
+          // logSaver(file, fileText);
+          const metaData = await MetadataProcessor(docPath, fileText);
+          saveMetadataAsJson(metaData, outputDir);
+          console.log(`Metadata extracted and saved for: ${file}`);
+        } catch (error) {
+          console.error(`Error processing ${file}: ${error.message}`);
+        }
+      } else {
+        console.log(`File type NOT FOUND FOR ${file}`);
       }
-    } else if (file.endsWith(".doc")) {
-      try {
-        const fileText = await docFilesExtractor(docPath, file);
-        // check if the text is extracted properly
-        // logSaver(file, fileText);
-        const metaData = await MetadataProcessor(docPath, fileText);
-        saveMetadataAsJson(metaData, outputDir);
-        console.log(`Metadata extracted and saved for: ${file}`);
-      } catch (error) {
-        console.error(`Error processing ${file}: ${error.message}`);
-      }
-    } else {
-      console.log(`File type NOT FOUND FOR ${file}`);
     }
-    // }
   }
 }
 

@@ -303,19 +303,23 @@ async function MetadataProcessor(docPath, text) {
     text,
     resolvedRepstart.pickedIndex
   );
+  console.log(resolvedRepstart, "stop", resolvedRepstop);
   // }
-  const reptextFromIndex = text
-    .slice(
-      resolvedRepstart.pickedIndex +
-        textLengthChecker(text.match(resolvedRepstart.regexPicked)) ?? 14,
-      resolvedRepstop?.pickedIndex
-      // repstopIndex == -1 ? resolvedRepstop : repstopIndex
-      // this removes everything in a bracket e.g (for A A MOCATTA on war service)
-    )
-    ?.replace(
-      /\([^()]*\)|solicitors?|LAWYERS?|respondents?|Applicants|\bfor\b|\bthe\b|Appellants?|\bwith\b/gi,
-      ""
-    );
+  let reptextFromIndex = "Representation Not Found";
+  if (resolvedRepstop?.pickedIndex !== -1) {
+    reptextFromIndex = text
+      .slice(
+        resolvedRepstart.pickedIndex +
+          textLengthChecker(text.match(resolvedRepstart.regexPicked)) ?? 14,
+        resolvedRepstop?.pickedIndex
+        // repstopIndex == -1 ? resolvedRepstop : repstopIndex
+        // this removes everything in a bracket e.g (for A A MOCATTA on war service)
+      )
+      ?.replace(
+        /\([^()]*\)|solicitors?|LAWYERS?|respondents?|Applicants|\bfor\b|\bthe\b|Appellants?|\bwith\b/gi,
+        ""
+      );
+  }
 
   // separate the respondent from appellant using AND
   const ArrayOfReps = reptextFromIndex.split("AND");
