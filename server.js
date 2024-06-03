@@ -55,7 +55,7 @@ async function processDocuments(inputDir, outputDir) {
         console.error(`Error processing ${file}: ${error.message}`);
       }
     } else {
-      console.log("File type NOT FOUND");
+      console.log(`File type NOT FOUND FOR ${file}`);
     }
     // }
   }
@@ -63,8 +63,8 @@ async function processDocuments(inputDir, outputDir) {
 
 // input and output path
 // const inputDirectory = "path/cases2";
-const inputDirectory = "path/B - FULL";
-// const inputDirectory = "path/cases";
+// const inputDirectory = "path/B - FULL";
+const inputDirectory = "path/cases";
 // const inputDirectory = "path/caseK_N";
 // const inputDirectory = "path/case1";
 const outputDirectory = "path/to";

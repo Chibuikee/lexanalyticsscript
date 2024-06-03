@@ -147,7 +147,7 @@ async function MetadataProcessor(docPath, text) {
 
   const dateString = datesMatches ? datesMatches[0].replace("ON ", "") : "";
   const completeDate = formatDate(dateString, text);
-  const year = text.match(/\d{4}/)[0];
+  const year = completeDate.match(/\d{4}/)[0];
 
   metadata.date = completeDate;
   // metadata.year = completeDate ? parseInt(completeDate?.split("-")[2]) : year;
@@ -304,12 +304,18 @@ async function MetadataProcessor(docPath, text) {
     resolvedRepstart.pickedIndex
   );
   // }
-  const reptextFromIndex = text.slice(
-    resolvedRepstart.pickedIndex +
-      textLengthChecker(text.match(resolvedRepstart.regexPicked)) ?? 14,
-    resolvedRepstop?.pickedIndex
-    // repstopIndex == -1 ? resolvedRepstop : repstopIndex
-  );
+  const reptextFromIndex = text
+    .slice(
+      resolvedRepstart.pickedIndex +
+        textLengthChecker(text.match(resolvedRepstart.regexPicked)) ?? 14,
+      resolvedRepstop?.pickedIndex
+      // repstopIndex == -1 ? resolvedRepstop : repstopIndex
+      // this removes everything in a bracket e.g (for A A MOCATTA on war service)
+    )
+    ?.replace(
+      /\([^()]*\)|solicitors?|LAWYERS?|respondents?|Applicants|\bfor\b|\bthe\b|Appellants?|\bwith\b/gi,
+      ""
+    );
 
   // separate the respondent from appellant using AND
   const ArrayOfReps = reptextFromIndex.split("AND");
@@ -324,17 +330,27 @@ async function MetadataProcessor(docPath, text) {
   // Single names are not matched for now sadly
   // const reparearegex = /(\b[A-Z][A-Z.\s]+ [A-Z-.]+\b)/g;
   // This is an improvement to the above, it matches single names
+  // const reparearegex =
+  //   /(\b[A-Z][A-Z.\s]+ [A-Z-.]+\b)|\b[A-Z\s]*&[\sA-Z]+|\b[A-Z]{4,}/g;
+  // the above issue now resolved with the new regex and logics from filterOutword function
   const reparearegex =
-    /(\b[A-Z][A-Z.\s]+ [A-Z-.]+\b)|\b[A-Z\s]*&[\sA-Z]+|\b[A-Z]{4,}/g;
-  //   const reparearegex = /\b[A-Z][A-Z .-]+\b/g;
-  const repApp = ArrayOfReps[0]
-    ?.match(reparearegex)
-    // some cases have /lawyers with the representation hence the clean up
-    ?.map((item) => item.replace(/LAWYERS?/g, "").trim());
-  // console.log(repApp);
-  // let newStr = str;
-  // (match) => match.trim()
-  const repRes = ArrayOfReps[1]?.match(reparearegex);
+    /\b[A-Z\s]*&[\sA-Z]+\b|\b([A-Z]\.\s?){0,4}([A-Z][a-z\s-]+)*([A-Z][a-z]+)(, (Esq|SAN|S.A.N))?\b|(\b[A-Z][A-Z.\s]+ [A-Z-.]+\b)|\b[A-Z]{4,}/g;
+  // const reparearegex = /\b[A-Z][A-Z .-]+\b/g;
+  // words that where mistakenly matched but not wanted
+  const ArrayOfwordsToRemove = ["Esq", "Counsel", "No Legal Representation"];
+  // convert the words to lower case
+  const wordsToRemoveInLowerCase = ArrayOfwordsToRemove.map((item) =>
+    item.toLowerCase()
+  );
+  function removeItem(word) {
+    const lWord = word.toLowerCase();
+
+    return !wordsToRemoveInLowerCase.includes(lWord);
+  }
+  // filter out certain words that where mistakenly matched but not wanted
+  const repApp = ArrayOfReps[0]?.match(reparearegex)?.filter(removeItem);
+
+  const repRes = ArrayOfReps[1]?.match(reparearegex)?.filter(removeItem);
 
   if (repApp && repRes && resolvedRepstart.pickedIndex !== -1) {
     createKeyAndValue("representation_appellant", repApp, metadata);
