@@ -5,8 +5,12 @@
 .node_modules
 /.pnp
 .pnp.js
-/path
-./path
+
+# Ignore everything in the path directory
+path/*
+
+# Except for the output directory
+!path/output
 /helperFunctions/output
 ./helperFunctions/output
 # testing
