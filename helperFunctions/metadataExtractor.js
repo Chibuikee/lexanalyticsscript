@@ -26,6 +26,7 @@ async function MetadataProcessor(docPath, text) {
     "SUPREME COURT",
     "FEDERAL SUPREME COURT",
     "COURT OF APPEAL",
+    "Court of Appeal",
     "FEDERAL HIGH COURT",
     "HIGH COURT",
     "COURT OF APPEAL, CIVIL DIVISION",
@@ -78,16 +79,16 @@ async function MetadataProcessor(docPath, text) {
     // these indexes are used only when the starting regex is not found
     // dont use when starting regex is found and dont remove this logic
     const indexes = [
-      /IN THE /,
-      /COURT OF APPEAL/,
-      /SUPREME COURT/,
-      /PRIVY COUNCIL/,
-      /HOUSE OF LORDS/,
-      /HOUSE OF L\w+DS?/,
-      /REPRESENTATION/,
+      /IN THE /i,
+      /COURT OF APPEAL/i,
+      /SUPREME COURT/i,
+      /PRIVY COUNCIL/i,
+      /HOUSE OF LORDS/i,
+      /HOUSE OF L\w+DS?/i,
+      /REPRESENTATION/i,
     ];
 
-    resolvedPIndex = NewindexSortInAscending(regexes, text, PstartIndex);
+    resolvedPIndex = NewindexSortInAscending(indexes, text, PstartIndex);
   }
 
   // console.log(resolvedPIndex);
@@ -330,7 +331,7 @@ async function MetadataProcessor(docPath, text) {
         // this removes everything in a bracket e.g (for A A MOCATTA on war service)
       )
       ?.replace(
-        /\([^()]*\)|solicitors?|LAWYERS?|respondents?|Applicants|\bfor\b|\bthe\b|Appellants?|\bwith\b/gi,
+        /\([^()]*\)|solicitors?|LAWYERS?|respondents?|Applicants|\bfor\b|\bthe\b|Barrister|Appellants?|\bwith\b/gi,
         ""
       );
   }

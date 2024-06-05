@@ -3,25 +3,25 @@ const NewindexSortInAscending = require("./newindexSortInAscending");
 const textLengthChecker = require("./textLength");
 
 const courts = [
-  /SUPREME COURT/,
-  /FEDERAL SUPREME COURT/,
-  /COURT OF APPEAL/,
-  /FEDERAL HIGH COURT/,
-  /HIGH COURT/,
-  /QUEEN'S BENCH/,
-  /QUEEN'S BENCH DIVISION/,
-  /APPEAL COURT DIVISION/,
-  /KING'S BENCH DIVISION/,
-  /KINGS COUNCIL/,
-  /APPEAL COURT/,
-  /\bPROBATE.+ DIVISION\b/,
-  // /HOUSE OF LORDS/,
+  /SUPREME COURT/i,
+  /FEDERAL SUPREME COURT/i,
+  /COURT OF APPEAL/i,
+  /FEDERAL HIGH COURT/i,
+  /HIGH COURT/i,
+  /QUEEN'S BENCH/i,
+  /QUEEN'S BENCH DIVISION/i,
+  /APPEAL COURT DIVISION/i,
+  /KING'S BENCH DIVISION/i,
+  /KINGS COUNCIL/i,
+  /APPEAL COURT/i,
+  /\bPROBATE.+ DIVISION\b/i,
+  // /HOUSE OF LORDS/i,
   // used because of potential spelling errors
-  /HOUSE OF L\w+DS?/,
-  /DIVISIONAL COURT/,
-  /PRIVY COUNCIL/,
-  /WACA/,
-  /CHANCERY/,
+  /HOUSE OF L\w+DS?/i,
+  /DIVISIONAL COURT/i,
+  /PRIVY COUNCIL/i,
+  /WACA/i,
+  /CHANCERY/i,
 ];
 
 function formatDate(inputDate, text) {
@@ -52,9 +52,9 @@ function formatDate(inputDate, text) {
   const day = inputDate.match(/\b\d{1,2}(?=TH|ST|ND|RD)?/);
 
   const monthName = inputDate.match(
-    /(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER)/
+    /(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER)/i
   );
-  // console.log("Date format giving error", day, inputDate);
+  console.log("Date format giving error", monthName[0]);
 
   const year = inputDate.match(/(\d{4})/);
 
@@ -73,7 +73,7 @@ function formatDate(inputDate, text) {
     DECEMBER: 12,
   };
 
-  const month = monthName ? monthMap[monthName[0]] : "invalid";
+  const month = monthName ? monthMap[monthName[0]?.toUpperCase()] : "invalid";
 
   // if (!month) {
   //   return "Invalid month name";
