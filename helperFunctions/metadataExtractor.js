@@ -28,6 +28,7 @@ async function MetadataProcessor(docPath, text) {
     "COURT OF APPEAL",
     "FEDERAL HIGH COURT",
     "HIGH COURT",
+    "COURT OF APPEAL, CIVIL DIVISION",
     "QUEEN'S BENCH",
     "QUEEN'S BENCH DIVISION",
     "APPEAL COURT DIVISION",
@@ -125,7 +126,7 @@ async function MetadataProcessor(docPath, text) {
   const CourtEndIndex = NewindexSortInAscending(courtsIndexes, text);
 
   const extractedCourt = text.slice(0, CourtEndIndex.pickedIndex);
-  // console.log(extractedCourt);
+  console.log(extractedCourt);
   // RegexVariable.courtsTypes.
   let PickedCourt = [];
   for (const regex of RegexVariable.courtsTypes) {
@@ -138,12 +139,9 @@ async function MetadataProcessor(docPath, text) {
       // regexArray.push({ [index]: regex });
     }
   }
-  // console.log("matched", );
+  // console.log("matched", PickedCourt);
   metadata.court =
-    PickedCourt[0] ?? (courts.find((court) => text.test(court)) || "");
-  // deprecated infavour of the above code because the code
-  // returns a court from any part of the text
-  // metadata.court = courts.find((court) => text.test(court)) || "";
+    PickedCourt[0] ?? (courts.find((court) => text.includes(court)) || "");
 
   // Extract DATE and YEAR
   const datesRegex =
@@ -153,7 +151,13 @@ async function MetadataProcessor(docPath, text) {
 
   const dateString = datesMatches ? datesMatches[0].replace("ON ", "") : "";
   const completeDate = formatDate(dateString, text);
-  const year = completeDate.match(/\d{4}/)[0];
+  // console.log(completeDate);
+  // come back and find a solution for no date
+  // checking for -null ensures that when accessing completeDate using regex it doesn't throw error
+  const year =
+    completeDate.includes("-null") || completeDate === "Invalid date format"
+      ? "No Year"
+      : completeDate.match(/\d{4}/)[0];
 
   metadata.date = completeDate;
   // metadata.year = completeDate ? parseInt(completeDate?.split("-")[2]) : year;

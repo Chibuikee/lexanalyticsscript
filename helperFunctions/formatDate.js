@@ -14,6 +14,7 @@ const courts = [
   /KING'S BENCH DIVISION/,
   /KINGS COUNCIL/,
   /APPEAL COURT/,
+  /\bPROBATE.+ DIVISION\b/,
   // /HOUSE OF LORDS/,
   // used because of potential spelling errors
   /HOUSE OF L\w+DS?/,
