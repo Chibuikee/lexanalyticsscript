@@ -54,7 +54,7 @@ function formatDate(inputDate, text) {
   const monthName = inputDate.match(
     /(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER)/i
   );
-  console.log("Date format giving error", monthName[0]);
+  // console.log("Date format giving error", monthName[0]);
 
   const year = inputDate.match(/(\d{4})/);
 

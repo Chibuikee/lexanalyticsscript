@@ -127,7 +127,7 @@ async function MetadataProcessor(docPath, text) {
   const CourtEndIndex = NewindexSortInAscending(courtsIndexes, text);
 
   const extractedCourt = text.slice(0, CourtEndIndex.pickedIndex);
-  console.log(extractedCourt);
+  // console.log(extractedCourt);
   // RegexVariable.courtsTypes.
   let PickedCourt = [];
   for (const regex of RegexVariable.courtsTypes) {

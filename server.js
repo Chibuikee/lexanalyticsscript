@@ -63,8 +63,8 @@ async function processDocuments(inputDir, outputDir) {
 
 // input and output path
 // const inputDirectory = "path/cases2";
-// const inputDirectory = "path/C - MINUS _CASE SUMMARY";
-const inputDirectory = "path/case";
+const inputDirectory = "path/C - MINUS _CASE SUMMARY";
+// const inputDirectory = "path/case";
 // const inputDirectory = "path/caseK_N";
 // const inputDirectory = "path/case1";
 const outputDirectory = "path/to";
