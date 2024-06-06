@@ -32,7 +32,7 @@ async function processDocuments(inputDir, outputDir) {
     // for (const file of files.slice(0, 3)) {
     // check whether the file name ends with .docx
     const docPath = path.join(inputDir, file);
-    // if (file === "AMACHREE v. KALLIO.docx") {
+    // if (file === "ARUM v. THE STATE.docx") {
     if (file.endsWith(".docx")) {
       try {
         const fileText = await docxFilesExtractor(docPath);
@@ -63,7 +63,7 @@ async function processDocuments(inputDir, outputDir) {
 
 // input and output path
 // const inputDirectory = "path/cases2";
-const inputDirectory = "path/Processed_for_entity_extraction_Russell";
+const inputDirectory = "path/2nd batch";
 // const inputDirectory = "path/case";
 // const inputDirectory = "path/caseK_N";
 // const inputDirectory = "path/case1";

@@ -42,6 +42,19 @@ async function MetadataProcessor(docPath, text) {
     "WACA",
     "CHANCERY",
   ];
+  // updated to "LEX\s?.*\d\w?". issue is that it can match more than lex citation, if this happens implement
+  // a condition that if the lex citation is more than 24 characters then match using LEX\s?.*\d\w
+  const LexCitationRegex = /LEX\s?.*\d\w?/;
+  // updated to "LEX\s?.*\d\w\b", using \d\w\b ensures a number followed by number or letter at the end.
+  // this should be the best but it won't match one digit alone it must be two digits or a digit and letter
+  // const LexCitationRegex = /LEX\s?.*\d\w\b/;
+  // fisrt path enforces the presence of "/" while the second insists on
+  //  whole number without any letter to the number at the end
+  // having the first regex before the second ensures that it doesn't stop at LEX (234), leaving the rest of it.
+  // this matches words or sentence after the lex number that is on thesame line
+  // const LexCitationRegex = /(LEX\s?.*\/\d+|LEX\s?.*\/?\d+\b)/;
+  // won't match if a letter is attached to the last digit
+  // const LexCitationRegex = /LEX\s?.*\d+\b/;
   // Extract CASE TITLE
   metadata.case_title = path.basename(docPath, path.extname(docPath));
 
@@ -123,7 +136,7 @@ async function MetadataProcessor(docPath, text) {
 
   // Extract COURT
 
-  const courtsIndexes = [/LEX\s.*\d+\b/, /(OTHER )?CITATIONS?/];
+  const courtsIndexes = [LexCitationRegex, /(OTHER )?CITATIONS?/];
   const CourtEndIndex = NewindexSortInAscending(courtsIndexes, text);
 
   const extractedCourt = text.slice(0, CourtEndIndex.pickedIndex);
@@ -163,22 +176,33 @@ async function MetadataProcessor(docPath, text) {
   metadata.date = completeDate;
   // metadata.year = completeDate ? parseInt(completeDate?.split("-")[2]) : year;
   metadata.year = year;
+
+  // SUIT NUMBER EXTRACTION
+
+  const regexesForSuitNoStop = [/LEX\s?.*/, /(OTHER )?CITATIONS?/, /BEFORE/];
+  const SuitNoEndIndex = NewindexSortInAscending(regexesForSuitNoStop, text);
+
+  const extractedSuitNoText = text.slice(0, SuitNoEndIndex.pickedIndex);
+  // console.log(extractedSuitNoText);
+  // const suitNumberRegex = /(M|CA|SC|S.C|(\(\d+\)))[.\/\w\s-]+\d\b|^\[\d+\].+/m;
   // (\(\d+\)) this captures suit number that start with (number inside)
-  const suitNumberRegex = /(CA|SC|S.C|(\(\d+\)))[.\/\w\s-]+\d\b/;
+  //  this does not account for suit numbers starting with []
+  const suitNumberRegex =
+    /(M\/|CA|SC|S.C|HD\/|LD\/|(\(\d+\)))[.\/\w\s-]+\d\w?\b|^\[\d+\].+/;
 
   // Match the suit number using the regular expression
-  const suitNumberMatch = suitNumberRegex.exec(
+  const suitNumberMatch = extractedSuitNoText.match(
     // text.slice(0, text.search(/(LEX|OTHER)/))
-    text
+    suitNumberRegex
   );
-
+  // console.log(suitNumberMatch[0], suitNumberMatch);
   // Extract the suit number from the match
   metadata.suit_number = suitNumberMatch
     ? suitNumberMatch[0].split(/\n/)[0]
     : "";
 
   // Extract Citation
-  const citationRegex = /LEX\s.*\d+\b/;
+  const citationRegex = LexCitationRegex;
   const citationMatch = citationRegex.exec(text);
   metadata.lex_citation = citationMatch ? citationMatch[0] : "";
 
@@ -224,18 +248,26 @@ async function MetadataProcessor(docPath, text) {
 
   const areaRegexStart = [
     /\bISSUE.+ OF ACTIONS?\b/,
+    /\bMAIN ISSUES?\b/,
     /PRACTICE AND PROCEDURE ISSUES/,
+    /SUBSTANTIVE LEGAL AND POLICY ISSUES?/,
   ];
-  const arearesolvedIndex = indexSortInAscending(areaRegexStart, text);
+  const arearesolvedIndex = NewindexSortInAscending(areaRegexStart, text);
 
   const areaRegexStop = [/CASE SUMMARY/, /MAI?N JUDGE?MENT/];
-  const arearesolvedIndexStop = indexSortInAscending(areaRegexStop, text);
+  const arearesolvedIndexStop = NewindexSortInAscending(
+    areaRegexStop,
+    text,
+    arearesolvedIndex
+  );
 
   // first check if case summary is available else use main judgment
   const textFromIndex = text.slice(
-    arearesolvedIndex + 29,
+    arearesolvedIndex.pickedIndex +
+      textLengthChecker(text.match(arearesolvedIndex.regexPicked)) ?? 24,
+
     // arearesolvedIndex + 35,
-    arearesolvedIndexStop
+    arearesolvedIndexStop.pickedIndex
   );
   // console.log("respondents", textFromIndex);
   const arearegex = /(?<=\n+)[A-Z ]+(?=.+(?:-|:))/g;
@@ -310,6 +342,9 @@ async function MetadataProcessor(docPath, text) {
     /MAI?N JUDGE?MENT/,
     /MAIN ISSUES?/,
     /ORIGINATING COURT/,
+    /ISSUES FOR DETERMINATION/,
+    /SUBSTANTIVE LEGAL AND POLICY ISSUES/,
+    /ISSUES? FROM  CAUSE/,
   ];
   let resolvedRepstop = -1;
   // if (repstopIndex == -1) {
@@ -331,13 +366,17 @@ async function MetadataProcessor(docPath, text) {
         // this removes everything in a bracket e.g (for A A MOCATTA on war service)
       )
       ?.replace(
-        /\([^()]*\)|solicitors?|LAWYERS?|respondents?|Applicants|\bfor\b|\bthe\b|Barrister|Appellants?|\bwith\b/gi,
+        // anything inside a parentheses is omitted
+        // now updated to exclude parentheses that starts with "with me"
+        /\((?!with him\b)[^()]*\)|solicitors?|LAWYERS?|respondents?|Applicants|\bfor\b|\bthe\b|Barrister|Appellants?|\bwith\b/gi,
         ""
       );
   }
-
+  // console.log(reptextFromIndex);
   // separate the respondent from appellant using AND
-  const ArrayOfReps = reptextFromIndex.split("AND");
+  //  updated to using regex AND instead of text AND
+  // this is because AND as a text matches any and not just and as a word
+  const ArrayOfReps = reptextFromIndex.split(/\bAND\b/);
   // .filter((item) => item !== "\n");
   // console.log(ArrayOfReps[1]);
   //   worked for ATTORNEY-GENERAL, OGUN STATE V. ALHAJI AYINKE ABERUAGBA
@@ -377,17 +416,24 @@ async function MetadataProcessor(docPath, text) {
   const repApp = ArrayOfReps[0]?.match(reparearegex)?.filter(removeItem);
 
   const repRes = ArrayOfReps[1]?.match(reparearegex)?.filter(removeItem);
-
+  // console.log(ArrayOfReps);
   if (repApp && repRes && resolvedRepstart.pickedIndex !== -1) {
     createKeyAndValue("representation_appellant", repApp, metadata);
     createKeyAndValue("representation_respondent", repRes, metadata);
+    re;
+    // } else if ((repApp || repRes) && resolvedRepstart.pickedIndex !== -1) {
   } else if (repApp && !repRes && resolvedRepstart.pickedIndex !== -1) {
     createKeyAndValue("representation", repApp, metadata);
   }
   // }
   // ORIGINATING COURTS
   const startOriginating = text.search(/ORIGINATING COURT(\(S\))?/);
-  const regexOriginating = [/REPRESENTATION/, /\bISSUE.+ OF ACTIONS?\b/];
+  const regexOriginating = [
+    /REPRESENTATION/,
+    /\bISSUE.+ OF ACTIONS?\b/,
+    /MAIN ISSUES?/,
+    /SUBSTANTIVE LEGAL AND POLICY ISSUES?/,
+  ];
   const ResolvedStopOriginating = indexSortInAscending(regexOriginating, text);
   // ORIGINATING COURT
   const textFromOriginating = text.slice(
