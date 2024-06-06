@@ -12,7 +12,7 @@ path/*
 # Except for the output directory
 !path/output
 /helperFunctions/output
-./helperFunctions/output
+
 # testing
 /coverage
 
